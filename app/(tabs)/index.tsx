@@ -1,38 +1,17 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
-
   return (
-    <SafeAreaView className='flex-1' style={{ backgroundColor: Colors[colorScheme].background }}>
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: Colors[colorScheme].text }]}>Início</Text>
-        <Text style={[styles.subtitle, { color: Colors[colorScheme].icon }]}>
+    <SafeAreaView className="flex-1 bg-white dark:bg-neutral-950">
+      <View className="flex-1 items-center justify-center gap-2">
+        <Text className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+          Início
+        </Text>
+        <Text className="text-base text-neutral-500 dark:text-neutral-400">
           Bem-vindo ao app
         </Text>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-});
