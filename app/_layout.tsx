@@ -13,6 +13,14 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="checkin-diario" 
+          options={{ 
+            headerShown: true,
+            headerTitle: 'Check-in Diário',
+            headerBackTitle: 'Voltar',
+          }} 
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
