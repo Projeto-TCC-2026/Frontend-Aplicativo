@@ -22,46 +22,46 @@ export function ResumoCard() {
         shadowRadius: 8,
         elevation: 4,
       }}>
-      <View className="mb-4 flex-row items-center justify-between">
-        <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
-          Resumo da Recuperação
+      <View className="mb-3 flex-row items-center justify-between">
+        <Text className="flex-1 text-base font-bold text-neutral-900 dark:text-neutral-100" numberOfLines={1}>
+          Recuperação
         </Text>
-        <View className="rounded-full bg-green-500/10 p-1.5">
-          <Ionicons name="stats-chart" size={18} color="#10b981" />
+        <View className="ml-2 rounded-full bg-green-500/10 p-2">
+          <Ionicons name="stats-chart" size={16} color="#10b981" />
         </View>
       </View>
 
       {/* Status Principal */}
-      <View className="mb-4 rounded-2xl bg-green-50 p-4 dark:bg-green-950/30">
-        <View className="mb-2 flex-row items-center gap-2">
-          <Ionicons name={resumo.statusIcon} size={24} color={resumo.statusColor} />
-          <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+      <View className="mb-3 rounded-2xl bg-green-50 p-3 dark:bg-green-950/30">
+        <View className="mb-2 flex-row items-start gap-2">
+          <Ionicons name={resumo.statusIcon} size={20} color={resumo.statusColor} style={{ marginTop: 1 }} />
+          <Text className="flex-1 text-sm font-bold text-neutral-900 dark:text-neutral-100" numberOfLines={2}>
             {resumo.status}
           </Text>
         </View>
-        <Text className="text-sm text-neutral-600 dark:text-neutral-400">
+        <Text className="text-xs text-neutral-600 dark:text-neutral-400" numberOfLines={2}>
           {resumo.mensagem}
         </Text>
       </View>
 
       {/* Métricas */}
-      <View className="flex-row gap-3">
+      <View className="flex-row gap-2">
         {/* Dias pós-cirurgia */}
-        <View className="flex-1 rounded-xl bg-neutral-100 p-3 dark:bg-neutral-800">
-          <Text className="mb-1 text-xs text-neutral-600 dark:text-neutral-400">
+        <View className="flex-1 rounded-xl bg-neutral-100 p-2.5 dark:bg-neutral-800">
+          <Text className="mb-1 text-[10px] text-neutral-600 dark:text-neutral-400" numberOfLines={2}>
             Dias pós-cirurgia
           </Text>
-          <Text className="text-2xl font-bold text-brand">{resumo.diasPosCirurgia}</Text>
+          <Text className="text-xl font-bold text-brand">{resumo.diasPosCirurgia}</Text>
         </View>
 
         {/* Alertas */}
-        <View className="flex-1 rounded-xl bg-neutral-100 p-3 dark:bg-neutral-800">
-          <Text className="mb-1 text-xs text-neutral-600 dark:text-neutral-400">
+        <View className="flex-1 rounded-xl bg-neutral-100 p-2.5 dark:bg-neutral-800">
+          <Text className="mb-1 text-[10px] text-neutral-600 dark:text-neutral-400" numberOfLines={2}>
             Alertas críticos
           </Text>
           <View className="flex-row items-center gap-1">
-            <Text className="text-2xl font-bold text-green-500">{resumo.alertas}</Text>
-            <Ionicons name="shield-checkmark" size={16} color="#10b981" />
+            <Text className="text-xl font-bold text-green-500">{resumo.alertas}</Text>
+            <Ionicons name="shield-checkmark" size={14} color="#10b981" />
           </View>
         </View>
       </View>

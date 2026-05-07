@@ -72,7 +72,7 @@ export function EvolucaoCard() {
         <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
           Evolução
         </Text>
-        <View className="rounded-full bg-orange-500/10 p-1.5">
+        <View className="rounded-full bg-orange-500/10 p-2">
           <Ionicons name="bar-chart" size={18} color="#f97316" />
         </View>
       </View>

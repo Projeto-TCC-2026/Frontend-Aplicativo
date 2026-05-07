@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckinCard } from '@/components/home/checkin-card';
 import { ConsultaCard } from '@/components/home/consulta-card';
 import { EvolucaoCard } from '@/components/home/evolucao-card';
+import { MedicacaoCard } from '@/components/home/medicacao-card';
 import { ResumoCard } from '@/components/home/resumo-card';
 import { SmartwatchCard } from '@/components/home/smartwatch-card';
 
@@ -12,7 +13,7 @@ export default function HomeScreen() {
     <SafeAreaView className="flex-1 bg-neutral-50 dark:bg-neutral-950">
       <ScrollView 
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="px-5 pt-4 pb-2">
@@ -31,6 +32,9 @@ export default function HomeScreen() {
 
           {/* Card de Smartwatch */}
           <SmartwatchCard />
+
+          {/* Card de Medicação */}
+          <MedicacaoCard />
 
           {/* Grid de 2 colunas */}
           <View className="flex-row gap-4">

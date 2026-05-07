@@ -21,7 +21,7 @@ export function SmartwatchCard() {
         <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
           Smartwatch
         </Text>
-        <View className="rounded-full bg-brand/10 p-1.5">
+        <View className="rounded-full bg-brand/10 p-2">
           <Ionicons name="watch" size={18} color="#0a7ea4" />
         </View>
       </View>
