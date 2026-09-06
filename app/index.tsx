@@ -11,21 +11,11 @@ import {
 } from 'react-native';
 
 import { DynamicFieldRenderer, type DynamicFieldValue } from '@/components/dynamic-field-renderer';
+import { colors, fonts, radii } from '@/constants/design-tokens';
 import type { AggregatedCheckinResponse, CheckinForm, DynamicField } from '@/src/domain/checkin';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { secureTokenStore } from '@/src/infrastructure/api/secure-token-store';
-
-const colors = {
-  primary: '#0C4C8A',
-  title: '#142230',
-  body: '#445468',
-  secondary: '#7C8DA1',
-  border: '#E4E9ED',
-  background: '#EEF2F5',
-  white: '#FFFFFF',
-  danger: '#D9484B',
-};
 
 type FieldState = Record<string, DynamicFieldValue>;
 type ErrorState = Record<string, string>;
@@ -229,18 +219,18 @@ function formatDate(value: string): string {
 }
 
 const styles = StyleSheet.create({
-  content: { backgroundColor: colors.background, flexGrow: 1, padding: 20, paddingBottom: 40 },
-  centered: { alignItems: 'center', backgroundColor: colors.background, flex: 1, gap: 12, justifyContent: 'center', padding: 24 },
-  title: { color: colors.title, fontSize: 30, fontWeight: '800', marginBottom: 6 },
-  procedureSection: { backgroundColor: colors.white, borderColor: colors.border, borderRadius: 14, borderWidth: 1, marginTop: 20, padding: 16 },
-  procedureTitle: { color: colors.title, fontSize: 20, fontWeight: '700', marginBottom: 4 },
-  body: { color: colors.body, fontSize: 15, lineHeight: 22 },
-  caption: { color: colors.secondary, fontSize: 13, lineHeight: 18 },
-  error: { color: colors.danger, fontSize: 13, lineHeight: 19, marginTop: 14 },
-  successTitle: { color: colors.title, fontSize: 26, fontWeight: '800' },
-  submitButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 9, justifyContent: 'center', marginTop: 22, minHeight: 52 },
-  submitButtonText: { color: colors.white, fontSize: 15, fontWeight: '700' },
-  secondaryButton: { borderColor: colors.primary, borderRadius: 9, borderWidth: 1, marginTop: 12, paddingHorizontal: 16, paddingVertical: 13 },
+  content: { backgroundColor: colors.neutral100, flexGrow: 1, padding: 20, paddingBottom: 40 },
+  centered: { alignItems: 'center', backgroundColor: colors.neutral100, flex: 1, gap: 12, justifyContent: 'center', padding: 24 },
+  title: { color: colors.neutral900, fontFamily: fonts.display, fontSize: 30, fontWeight: '800', marginBottom: 6 },
+  procedureSection: { backgroundColor: colors.white, borderColor: colors.neutral150, borderRadius: radii.lg, borderWidth: 1, marginTop: 20, padding: 16 },
+  procedureTitle: { color: colors.neutral900, fontFamily: fonts.display, fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  body: { color: colors.neutral700, fontFamily: fonts.body, fontSize: 15, lineHeight: 22 },
+  caption: { color: colors.neutral500, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
+  error: { color: colors.critical, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, marginTop: 14 },
+  successTitle: { color: colors.neutral900, fontFamily: fonts.display, fontSize: 26, fontWeight: '800' },
+  submitButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.sm, justifyContent: 'center', marginTop: 22, minHeight: 52 },
+  submitButtonText: { color: colors.white, fontFamily: fonts.body, fontSize: 15, fontWeight: '700' },
+  secondaryButton: { borderColor: colors.primary, borderRadius: radii.sm, borderWidth: 1, marginTop: 12, paddingHorizontal: 16, paddingVertical: 13 },
   secondaryButtonText: { color: colors.primary, fontWeight: '700' },
   disabledButton: { opacity: 0.7 },
 });

@@ -4,17 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
-
-const colors = {
-  primary: '#0C4C8A',
-  title: '#142230',
-  body: '#445468',
-  secondary: '#7C8DA1',
-  border: '#C3CDD6',
-  background: '#EEF2F5',
-  white: '#FFFFFF',
-  danger: '#D9484B',
-};
+import { colors, fonts, radii } from '@/constants/design-tokens';
 
 export default function Login() {
   const [email, setEmail] = useState('patient1@tcc.com');
@@ -89,14 +79,14 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  screen: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', padding: 20 },
-  card: { backgroundColor: colors.white, borderRadius: 14, maxWidth: 480, padding: 24, width: '100%' },
-  title: { color: colors.title, fontSize: 28, fontWeight: '800', marginBottom: 6 },
-  subtitle: { color: colors.body, fontSize: 15, lineHeight: 22, marginBottom: 24 },
-  label: { color: colors.title, fontSize: 14, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  input: { borderColor: colors.border, borderRadius: 9, borderWidth: 1, color: colors.title, fontSize: 15, minHeight: 48, paddingHorizontal: 14 },
-  error: { color: colors.danger, fontSize: 13, lineHeight: 19, marginTop: 14 },
-  button: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 9, justifyContent: 'center', marginTop: 22, minHeight: 52 },
-  buttonText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  screen: { alignItems: 'center', backgroundColor: colors.neutral100, flex: 1, justifyContent: 'center', padding: 20 },
+  card: { backgroundColor: colors.white, borderRadius: radii.lg, maxWidth: 480, padding: 24, width: '100%' },
+  title: { color: colors.neutral900, fontFamily: fonts.display, fontSize: 28, fontWeight: '800', marginBottom: 6 },
+  subtitle: { color: colors.neutral700, fontFamily: fonts.body, fontSize: 15, lineHeight: 22, marginBottom: 24 },
+  label: { color: colors.neutral900, fontFamily: fonts.body, fontSize: 14, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+  input: { borderColor: colors.neutral300, borderRadius: radii.sm, borderWidth: 1, color: colors.neutral900, fontFamily: fonts.body, fontSize: 15, minHeight: 48, paddingHorizontal: 14 },
+  error: { color: colors.critical, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, marginTop: 14 },
+  button: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.sm, justifyContent: 'center', marginTop: 22, minHeight: 52 },
+  buttonText: { color: colors.white, fontFamily: fonts.body, fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.7 },
 });

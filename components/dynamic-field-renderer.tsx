@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import type { DynamicField, FieldDataType } from '@/src/domain/checkin';
+import { colors, fonts, radii } from '@/constants/design-tokens';
 
 export type DynamicFieldValue = string | null;
 
@@ -138,14 +139,15 @@ function getRangePlaceholder(field: DynamicField): string | undefined {
 
 const styles = StyleSheet.create({
   container: { gap: 6, marginBottom: 18 },
-  label: { color: '#142230', fontSize: 15, fontWeight: '600' },
-  description: { color: '#7C8DA1', fontSize: 13 },
-  unit: { color: '#7C8DA1', fontSize: 12 },
+  label: { color: colors.neutral900, fontFamily: fonts.body, fontSize: 15, fontWeight: '600' },
+  description: { color: colors.neutral500, fontFamily: fonts.body, fontSize: 13 },
+  unit: { color: colors.neutral500, fontFamily: fonts.body, fontSize: 12 },
   input: {
-    borderColor: '#C3CDD6',
-    borderRadius: 9,
+    borderColor: colors.neutral300,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    color: '#142230',
+    color: colors.neutral900,
+    fontFamily: fonts.body,
     fontSize: 15,
     minHeight: 48,
     paddingHorizontal: 14,
@@ -153,14 +155,14 @@ const styles = StyleSheet.create({
   },
   textArea: { minHeight: 92, textAlignVertical: 'top' },
   booleanRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 48 },
-  booleanValue: { color: '#445468', fontSize: 15 },
+  booleanValue: { color: colors.neutral700, fontFamily: fonts.body, fontSize: 15 },
   scaleRow: { flexDirection: 'row', gap: 8 },
-  scaleOption: { alignItems: 'center', borderColor: '#C3CDD6', borderRadius: 9, borderWidth: 1, height: 44, justifyContent: 'center', minWidth: 44 },
-  scaleOptionSelected: { backgroundColor: '#0C4C8A', borderColor: '#0C4C8A' },
-  scaleText: { color: '#445468', fontWeight: '600' },
-  scaleTextSelected: { color: '#FFFFFF' },
-  photoButton: { alignItems: 'center', backgroundColor: '#0C4C8A', borderRadius: 9, justifyContent: 'center', minHeight: 48, paddingHorizontal: 16 },
-  photoButtonText: { color: '#FFFFFF', fontWeight: '600' },
-  disabled: { backgroundColor: '#F1F3F5', color: '#7C8DA1' },
-  error: { color: '#D9484B', fontSize: 12 },
+  scaleOption: { alignItems: 'center', borderColor: colors.neutral300, borderRadius: radii.sm, borderWidth: 1, height: 44, justifyContent: 'center', minWidth: 44 },
+  scaleOptionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  scaleText: { color: colors.neutral700, fontFamily: fonts.data, fontWeight: '600' },
+  scaleTextSelected: { color: colors.white },
+  photoButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.sm, justifyContent: 'center', minHeight: 48, paddingHorizontal: 16 },
+  photoButtonText: { color: colors.white, fontFamily: fonts.body, fontWeight: '600' },
+  disabled: { backgroundColor: colors.disabledBackground, color: colors.neutral500 },
+  error: { color: colors.critical, fontFamily: fonts.body, fontSize: 12 },
 });
