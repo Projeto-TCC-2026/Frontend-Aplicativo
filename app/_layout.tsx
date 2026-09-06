@@ -2,6 +2,9 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
+import Toast from 'react-native-toast-message';
+
+import { toastConfig } from '@/components/ui/toast-config';
 import {
   IBMPlexMono_500Medium,
   IBMPlexMono_600SemiBold,
@@ -46,6 +49,9 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <Toast config={toastConfig} />
+    </>
   );
 }
