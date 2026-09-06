@@ -32,6 +32,9 @@ src/
 │   └── hooks/
 ├── infrastructure/
 │   ├── api/
+│   │   ├── api-client.ts          # HTTP, envelope ApiResponse e refresh 401
+│   │   ├── api-config.ts           # cria cliente com EXPO_PUBLIC_API_URL
+│   │   └── token-store.ts          # contrato de armazenamento de tokens
 │   ├── storage/
 │   ├── health/
 │   ├── notifications/
@@ -41,6 +44,19 @@ src/
     ├── types/
     └── utils/
 ```
+
+## Módulos implementados
+
+- `src/infrastructure/api/api-client.ts` centraliza requests JSON, autenticação Bearer, refresh concorrente em `401`, login do paciente, formulário dinâmico e submissão agregada.
+- `src/infrastructure/api/secure-token-store.ts` persiste access e refresh tokens com `expo-secure-store`; ele é o `TokenStore` padrão do cliente.
+- `src/application/checkin-api.ts` é o adapter específico do fluxo de check-in; telas e casos de uso não precisam conhecer URLs.
+- `components/dynamic-field-renderer.tsx` renderiza `INTEGER`, `DECIMAL`, `BOOLEAN`, `TEXT`, `SCALE` e `PHOTO` a partir do contrato do Backend.
+- `src/domain/checkin.ts` contém os tipos do formulário e do payload agregado.
+- `app/index.tsx` demonstra a primeira fatia integrada: carrega formulários por procedimento, combina campos, valida obrigatórios e envia `POST /api/mobile/checkins`.
+
+O `TokenStore` é uma interface deliberadamente injetável. `secureTokenStore` é usado em produção; `emptyTokenStore` existe apenas para composição e testes.
+
+O botão de foto está preparado no renderer, mas a seleção e o upload ainda aguardam o contrato de mídia do Backend.
 
 ## Primeira fatia vertical
 
