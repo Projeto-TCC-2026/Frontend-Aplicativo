@@ -2,6 +2,8 @@
 
 A implementação mobile deve compartilhar os mesmos significados visuais do Web, adaptando apenas a implementação React Native.
 
+No mobile, a implementação visual usa NativeWind/Tailwind por meio de `className`. Os tokens são definidos em `constants/design-tokens.ts` e espelhados em `tailwind.config.js`; `StyleSheet` e estilos inline não são usados.
+
 ## Tokens de cor
 
 - `aqua-claro`: `#99D5E0`

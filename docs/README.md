@@ -12,6 +12,7 @@ Documentação de preparação do aplicativo do paciente.
 6. [Arquitetura](./ARCHITECTURE.md)
 7. [Design system](./DESIGN-SYSTEM.md)
 8. [Status de integração com o Backend](./BACKEND-INTEGRATION-STATUS.md)
+9. [Componentes base](./COMPONENTS.md)
 
 ## Estado
 

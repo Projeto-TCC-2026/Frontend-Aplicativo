@@ -26,9 +26,15 @@ module.exports = {
         },
         semantic: {
           success: "#2F9E6E",
+          "success-bg": "#E5F6EE",
           attention: "#E5A139",
+          "attention-bg": "#FBF1DF",
           critical: "#D9484B",
+          "critical-bg": "#FBE7E7",
           info: "#2E77B8",
+          "info-bg": "#E7F1FA",
+          disabled: "#B8C0C8",
+          "disabled-bg": "#F1F3F5",
         },
       },
       fontFamily: {
