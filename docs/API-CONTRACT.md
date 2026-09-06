@@ -2,6 +2,20 @@
 
 Este documento separa o que está definido no domínio do que ainda precisa ser confirmado no Backend. Nenhuma rota deve ser codificada como contrato definitivo enquanto a resposta não estiver validada no OpenAPI.
 
+## Endpoints já existentes
+
+- `POST /auth/patient/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /auth/me`
+- `POST /forgot-password/request`
+- `POST /forgot-password/reset`
+- `GET /api/mobile/patient-procedures/{patientProcedureId}/checkin-form`
+- `POST /api/mobile/patient-procedures/{patientProcedureId}/checkins`
+- `POST /api/mobile/checkins`
+
+Os endpoints individuais permanecem para compatibilidade. O app deve usar `POST /api/mobile/checkins` para o fluxo agregado da primeira versão.
+
 ## Requisitos comuns
 
 - Base URL configurável por ambiente.
