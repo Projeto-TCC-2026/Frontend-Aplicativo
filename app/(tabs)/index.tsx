@@ -13,7 +13,7 @@ export default function Home() {
   }, []);
 
   return (
-    <Screen className="gap-5 bg-neutral-100 p-5">
+    <Screen className="gap-5 bg-neutral-100 p-8">
       <View>
         <Text className="font-display text-[30px] font-extrabold text-neutral-900">Olá, paciente</Text>
         <Text className="mt-1 font-body text-[15px] text-neutral-700">Acompanhe sua recuperação hoje.</Text>

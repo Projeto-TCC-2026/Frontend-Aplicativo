@@ -1,4 +1,10 @@
 import type { ApiResponse } from '@/src/shared/types/api';
+import type { PaginatedAlerts } from '@/src/domain/alert';
+import type {
+  AggregatedCheckinRequest,
+  AggregatedCheckinResponse,
+  CheckinForm,
+} from '@/src/domain/checkin';
 import { emptyTokenStore, type TokenStore } from './token-store';
 
 export type ApiClientOptions = {
@@ -17,6 +23,7 @@ export class ApiClientError extends Error {
     this.status = status;
     this.fieldErrors = fieldErrors;
   }
+
 }
 
 export class ApiClient {
@@ -103,6 +110,11 @@ export class ApiClient {
       .then(unwrapResponse);
   }
 
+  async getRecentAlerts(page = 0, size = 20): Promise<PaginatedAlerts> {
+    return this.get<ApiResponse<PaginatedAlerts>>(`/api/mobile/alerts?page=${page}&size=${size}`)
+      .then(unwrapResponse);
+  }
+
   private async request<T>(path: string, init: RequestInit, retryOnUnauthorized = true): Promise<T> {
     const accessToken = await this.tokenStore.getAccessToken();
     const headers = new Headers(init.headers);
@@ -141,12 +153,6 @@ type RefreshTokenResponse = {
   accessToken: string;
   refreshToken: string;
 };
-
-import type {
-  AggregatedCheckinRequest,
-  AggregatedCheckinResponse,
-  CheckinForm,
-} from '@/src/domain/checkin';
 
 function unwrapResponse<T>(response: ApiResponse<T>): T {
   if (!response.success || response.data === null) {
