@@ -1,8 +1,9 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { colors } from '@/constants/design-tokens';
 
 export function AppTabs() {
   return (
-    <NativeTabs tintColor="#0C4C8A" iconColor={{ default: '#7C8DA1', selected: '#0C4C8A' }} indicatorColor="#AEDEDE" rippleColor="#AEDEDE" labelVisibilityMode="unlabeled">
+    <NativeTabs tintColor={colors.primary} iconColor={{ default: colors.neutral500, selected: colors.primary }} indicatorColor={colors.aquaSoft} rippleColor={colors.aquaSoft} labelVisibilityMode="unlabeled">
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label hidden />
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md={{ default: 'home', selected: 'home' }} />

@@ -1,6 +1,7 @@
 import { forwardRef, useState } from 'react';
 import type { TextInput as TextInputType } from 'react-native';
 import { Text, TextInput, View } from 'react-native';
+import { colors } from '@/constants/design-tokens';
 
 export type TextFieldState = 'default' | 'error' | 'success';
 export type TextFieldType = 'text' | 'email' | 'password' | 'number' | 'tel';
@@ -14,8 +15,8 @@ export const TextField = forwardRef<TextInputType, TextFieldProps>(function Text
   const helperClass = state === 'error' ? 'text-semantic-critical' : state === 'success' ? 'text-semantic-success' : 'text-neutral-500';
   return (
     <View className="gap-1.5">
-      {label ? <Text className="font-body text-sm font-semibold text-neutral-900">{label}{required ? ' *' : ''}</Text> : null}
-      <TextInput ref={ref} accessibilityLabel={accessibilityLabel ?? label} autoCapitalize={autoCapitalize} editable={!disabled} keyboardType={keyboardTypes[type]} multiline={multiline} onBlur={() => setFocused(false)} onChangeText={onChangeText} onFocus={() => setFocused(true)} placeholder={placeholder} placeholderTextColor="#7C8DA1" secureTextEntry={type === 'password'} className={`min-h-12 rounded-[9px] border-[1.5px] bg-white px-3.5 py-2.5 font-body text-[15px] text-neutral-900 ${borderClass} ${multiline ? 'min-h-24 text-align-top' : ''} ${disabled ? 'bg-semantic-disabled-bg text-neutral-500' : ''}`} value={value} />
+      {label ? <Text className="font-body text-sm font-semibold text-neutral-900 dark:text-theme-dark-text-primary">{label}{required ? ' *' : ''}</Text> : null}
+      <TextInput ref={ref} accessibilityLabel={accessibilityLabel ?? label} autoCapitalize={autoCapitalize} editable={!disabled} keyboardType={keyboardTypes[type]} multiline={multiline} onBlur={() => setFocused(false)} onChangeText={onChangeText} onFocus={() => setFocused(true)} placeholder={placeholder} placeholderTextColor={colors.neutral500} secureTextEntry={type === 'password'} className={`min-h-12 rounded-[9px] border-[1.5px] bg-white px-3.5 py-2.5 font-body text-[15px] text-neutral-900 dark:bg-theme-dark-surface dark:text-theme-dark-text-primary dark:border-theme-dark-input-border ${borderClass} ${multiline ? 'min-h-24 text-align-top' : ''} ${disabled ? 'bg-semantic-disabled-bg text-neutral-500 dark:bg-theme-dark-border dark:text-theme-dark-text-tertiary' : ''}`} value={value} />
       {helperText ? <Text className={`font-body text-xs leading-4 ${helperClass}`}>{helperText}</Text> : null}
     </View>
   );

@@ -21,6 +21,20 @@ export const colors = {
   infoBackground: '#E7F1FA',
   disabled: '#B8C0C8',
   disabledBackground: '#F1F3F5',
+  darkBackground: '#101A24',
+  darkSurface: '#1A2938',
+  darkBorder: '#2B3D4D',
+  darkInputBorder: '#52687C',
+  darkTextPrimary: '#EEF2F5',
+  darkTextSecondary: '#C4D0DB',
+  darkTextTertiary: '#AAB8C5',
+  darkAction: '#8FC8FF',
+  darkEmptyState: '#245373',
+  darkCriticalBackground: '#542A30',
+  darkAttentionBackground: '#59451E',
+  darkAttentionText: '#F5D99F',
+  darkInfoBackground: '#203F5C',
+  darkSliderTrack: '#52687C',
 } as const;
 
 export const fonts = {

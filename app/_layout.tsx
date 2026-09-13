@@ -1,8 +1,12 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
+import { useColorScheme } from 'react-native';
 import { useFonts } from 'expo-font';
 import Toast from 'react-native-toast-message';
+import { colors } from '@/constants/design-tokens';
 
 import { toastConfig } from '@/components/ui/toast-config';
 import {
@@ -27,6 +31,7 @@ import '@/global.css';
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
     Manrope_600SemiBold,
     Manrope_700Bold,
@@ -46,10 +51,15 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(colorScheme === 'dark' ? colors.darkBackground : colors.neutral100);
+  }, [colorScheme]);
+
   if (!fontsLoaded && !fontError) return null;
 
   return (
     <>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }} />
       <Toast config={toastConfig} />
     </>

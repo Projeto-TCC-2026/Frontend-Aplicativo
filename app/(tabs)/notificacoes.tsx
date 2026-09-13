@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, useColorScheme, View } from 'react-native';
 
 import { Button, Card, EmptyState, ErrorState, LoadingState, Screen, StatusBadge } from '@/components/ui';
 import type { PatientAlert } from '@/src/domain/alert';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
+import { colors } from '@/constants/design-tokens';
 
 const PAGE_SIZE = 20;
 
@@ -45,15 +46,15 @@ export default function Notifications() {
   }, [loadAlerts]);
 
   if (loading) {
-    return <Screen className="bg-neutral-100"><LoadingState fullPage text="Carregando alertas..." /></Screen>;
+    return <Screen className="bg-neutral-100 dark:bg-theme-dark-background"><LoadingState fullPage text="Carregando alertas..." /></Screen>;
   }
 
   return (
-    <Screen className="bg-neutral-100 p-8">
+    <Screen className="bg-neutral-100 p-8 dark:bg-theme-dark-background">
       <ScrollView contentContainerClassName="flex-grow gap-5 pb-10">
         <View>
-          <Text className="font-display text-[30px] font-extrabold text-neutral-900">Alertas</Text>
-          <Text className="mt-1 font-body text-[15px] text-neutral-700">Ocorrências identificadas nos últimos 7 dias.</Text>
+          <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Alertas</Text>
+          <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Ocorrências identificadas nos últimos 7 dias.</Text>
         </View>
 
         {error ? <ErrorState description={error} onRetry={() => void loadAlerts()} /> : null}
@@ -72,23 +73,26 @@ export default function Notifications() {
 }
 
 function AlertCard({ alert }: { alert: PatientAlert }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const tone = alert.severity.toUpperCase().includes('CRIT') ? 'critical'
     : alert.severity.toUpperCase().includes('ATEN') ? 'attention' : 'info';
+  const iconColor = tone === 'critical' ? colors.critical : tone === 'attention' ? colors.attention : isDark ? colors.darkAction : colors.info;
   const date = new Date(alert.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
     <Card padding="md">
       <View className="flex-row items-start gap-3">
-        <View className={`mt-0.5 h-9 w-9 items-center justify-center rounded-full ${tone === 'critical' ? 'bg-semantic-critical-bg' : tone === 'attention' ? 'bg-semantic-attention-bg' : 'bg-semantic-info-bg'}`}>
-          <Ionicons color={tone === 'critical' ? '#D9484B' : tone === 'attention' ? '#B7791F' : '#2477B7'} name="warning-outline" size={20} />
+        <View className={`mt-0.5 h-9 w-9 items-center justify-center rounded-full ${tone === 'critical' ? 'bg-semantic-critical-bg dark:bg-theme-dark-critical-background' : tone === 'attention' ? 'bg-semantic-attention-bg dark:bg-theme-dark-attention-background' : 'bg-semantic-info-bg dark:bg-theme-dark-info-background'}`}>
+          <Ionicons color={iconColor} name="warning-outline" size={20} />
         </View>
         <View className="flex-1 gap-2">
           <View className="flex-row items-start justify-between gap-3">
-            <Text className="flex-1 font-display text-base font-bold text-neutral-900">{alert.title}</Text>
+            <Text className="flex-1 font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">{alert.title}</Text>
             <StatusBadge label={alert.severity} tone={tone} />
           </View>
-          {alert.description ? <Text className="font-body text-sm leading-5 text-neutral-700">{alert.description}</Text> : null}
-          <Text className="font-data text-[11px] text-neutral-500">{date}</Text>
+          {alert.description ? <Text className="font-body text-sm leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">{alert.description}</Text> : null}
+          <Text className="font-data text-[11px] text-neutral-500 dark:text-theme-dark-text-tertiary">{date}</Text>
         </View>
       </View>
     </Card>

@@ -13,21 +13,21 @@ export default function Home() {
   }, []);
 
   return (
-    <Screen className="gap-5 bg-neutral-100 p-8">
+    <Screen className="gap-5 bg-neutral-100 p-8 dark:bg-theme-dark-background">
       <View>
-        <Text className="font-display text-[30px] font-extrabold text-neutral-900">Olá, paciente</Text>
-        <Text className="mt-1 font-body text-[15px] text-neutral-700">Acompanhe sua recuperação hoje.</Text>
+        <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Olá, paciente</Text>
+        <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhe sua recuperação hoje.</Text>
       </View>
 
       <Card title="Resumo de hoje" subtitle="Seu acompanhamento diário">
         <View className="flex-row justify-between">
           <View className="gap-1">
-            <Text className="font-body text-xs text-neutral-500">Check-in</Text>
+            <Text className="font-body text-xs text-neutral-500 dark:text-theme-dark-text-tertiary">Check-in</Text>
             <StatusBadge label={hasCheckedInToday ? 'Concluído' : 'Pendente'} tone={hasCheckedInToday ? 'success' : 'attention'} />
           </View>
           <View className="gap-1">
-            <Text className="font-body text-xs text-neutral-500">Procedimentos ativos</Text>
-            <Text className="font-data text-[22px] font-semibold text-neutral-900">--</Text>
+            <Text className="font-body text-xs text-neutral-500 dark:text-theme-dark-text-tertiary">Procedimentos ativos</Text>
+            <Text className="font-data text-[22px] font-semibold text-neutral-900 dark:text-theme-dark-text-primary">--</Text>
           </View>
         </View>
       </Card>

@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "media",
   content: [
     "./app/**/*.{js,jsx,ts,tsx}",
     "./components/**/*.{js,jsx,ts,tsx}",
@@ -35,6 +36,21 @@ module.exports = {
           "info-bg": "#E7F1FA",
           disabled: "#B8C0C8",
           "disabled-bg": "#F1F3F5",
+        },
+        theme: {
+          "dark-background": "#101A24",
+          "dark-surface": "#1A2938",
+          "dark-border": "#2B3D4D",
+          "dark-input-border": "#52687C",
+          "dark-text-primary": "#EEF2F5",
+          "dark-text-secondary": "#C4D0DB",
+          "dark-text-tertiary": "#AAB8C5",
+          "dark-action": "#8FC8FF",
+          "dark-empty-state": "#245373",
+          "dark-critical-background": "#542A30",
+          "dark-attention-background": "#59451E",
+          "dark-attention-text": "#F5D99F",
+          "dark-info-background": "#203F5C",
         },
       },
       fontFamily: {
