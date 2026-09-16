@@ -99,6 +99,20 @@ export class ApiClient {
     }
   }
 
+  async requestPasswordReset(email: string): Promise<string> {
+    const response = await this.post<ApiResponse<void>>('/forgot-password/request', { email });
+    return response.message ?? 'Instruções enviadas com sucesso.';
+  }
+
+  async resetPassword(code: string, password: string, passwordConfirmation: string): Promise<string> {
+    const response = await this.post<ApiResponse<void>>('/forgot-password/reset', {
+      code,
+      password,
+      passwordConfirmation,
+    });
+    return response.message ?? 'Senha atualizada com sucesso.';
+  }
+
   async getCheckinForm(patientProcedureId: string): Promise<CheckinForm> {
     return this.get<ApiResponse<CheckinForm>>(
       `/api/mobile/patient-procedures/${patientProcedureId}/checkin-form`,
