@@ -1,10 +1,10 @@
-import type { ApiResponse } from '@/src/shared/types/api';
 import type { PaginatedAlerts } from '@/src/domain/alert';
 import type {
-  AggregatedCheckinRequest,
-  AggregatedCheckinResponse,
-  CheckinForm,
+    AggregatedCheckinRequest,
+    AggregatedCheckinResponse,
+    CheckinForm,
 } from '@/src/domain/checkin';
+import type { ApiResponse } from '@/src/shared/types/api';
 import { emptyTokenStore, type TokenStore } from './token-store';
 
 export type ApiClientOptions = {
@@ -129,6 +129,14 @@ export class ApiClient {
       .then(unwrapResponse);
   }
 
+  async changePassword(currentPassword: string, newPassword: string, confirmNewPassword: string): Promise<void> {
+    await this.patch<ApiResponse<null>>('/auth/change-password', { currentPassword, newPassword, confirmNewPassword });
+  }
+
+  async updateProfile(data: UpdateProfileRequest): Promise<void> {
+    await this.patch<ApiResponse<null>>('/auth/profile/patient', data);
+  }
+
   private async request<T>(path: string, init: RequestInit, retryOnUnauthorized = true): Promise<T> {
     const accessToken = await this.tokenStore.getAccessToken();
     const headers = new Headers(init.headers);
@@ -153,6 +161,19 @@ export class ApiClient {
     return payload as T;
   }
 }
+
+export type UpdateProfileRequest = {
+  fullName?: string;
+  birthDate?: string;
+  gender?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  weight?: number;
+  height?: number;
+};
 
 export type PatientAuthResponse = {
   accessToken: string;
