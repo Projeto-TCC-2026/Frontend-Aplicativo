@@ -14,7 +14,9 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.tcc26.recuperasaude",
+      "google-services": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -44,6 +46,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "902fc26a-e533-47fb-b7af-a68be91fd11a"
+      }
+    },
+    "owner": "tcc-26"
   }
 }
