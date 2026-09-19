@@ -1,13 +1,14 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Text, View } from 'react-native';
 import { Button, Screen, TextField } from '@/components/ui';
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
+import { syncPushRegistration } from '@/src/infrastructure/api/push-service';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Text, View } from 'react-native';
 
 export default function Login() {
   const [email, setEmail] = useState('patient1@tcc.com'); const [password, setPassword] = useState('123456'); const [loading, setLoading] = useState(false); const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  async function submit() { if (!email.trim() || !password) { setErrorMessage('Informe seu e-mail e sua senha.'); return; } setLoading(true); setErrorMessage(null); try { await createApiClient().loginPatient(email.trim(), password); router.replace('/' as never); } catch (error) { setErrorMessage(error instanceof ApiClientError && error.status === 401 ? 'E-mail ou senha inválidos.' : error instanceof Error ? error.message : 'Não foi possível fazer login.'); } finally { setLoading(false); } }
+  async function submit() { if (!email.trim() || !password) { setErrorMessage('Informe seu e-mail e sua senha.'); return; } setLoading(true); setErrorMessage(null); try { await createApiClient().loginPatient(email.trim(), password); void syncPushRegistration(); router.replace('/' as never); } catch (error) { setErrorMessage(error instanceof ApiClientError && error.status === 401 ? 'E-mail ou senha inválidos.' : error instanceof Error ? error.message : 'Não foi possível fazer login.'); } finally { setLoading(false); } }
   return (
     <Screen className="items-center justify-center bg-neutral-100 p-5 dark:bg-theme-dark-background">
       <View className="w-full max-w-[480px] gap-4 rounded-[14px] bg-white p-6 dark:bg-theme-dark-surface">

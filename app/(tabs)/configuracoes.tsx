@@ -6,6 +6,7 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Card, Screen, TextField } from '@/components/ui';
 import { colors } from '@/constants/design-tokens';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
+import { removePushRegistration } from '@/src/infrastructure/api/push-service';
 
 type Section = 'main' | 'editAccount' | 'changePassword' | 'privacyPolicy' | 'about';
 
@@ -146,6 +147,8 @@ export default function Settings() {
   async function logout() {
     setLoading(true);
     try {
+      // Antes do logout: o unregister exige o JWT do paciente ainda válido.
+      await removePushRegistration();
       await createApiClient().logout();
       router.replace('/login');
     } finally {

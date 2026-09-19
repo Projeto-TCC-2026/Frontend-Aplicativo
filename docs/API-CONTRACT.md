@@ -13,6 +13,8 @@ Este documento separa o que está definido no domínio do que ainda precisa ser 
 - `GET /api/mobile/patient-procedures/{patientProcedureId}/checkin-form`
 - `POST /api/mobile/patient-procedures/{patientProcedureId}/checkins`
 - `POST /api/mobile/checkins`
+- `POST /api/mobile/devices`
+- `DELETE /api/mobile/devices?token={token}`
 
 Os endpoints individuais permanecem para compatibilidade. O app deve usar `POST /api/mobile/checkins` para o fluxo agregado da primeira versão.
 
@@ -38,7 +40,7 @@ Os endpoints individuais permanecem para compatibilidade. O app deve usar `POST 
 | Histórico de check-ins | Necessário; confirmar paginação e filtros |
 | Leituras do smartwatch | Backend possui HealthReading/ReadingImport; confirmar ingestão mobile |
 | Alertas do paciente | Regra definida; confirmar endpoint e payload |
-| Registro de push token | Necessário; endpoint ainda não documentado como contrato mobile |
+| Registro de push token | Existe; `POST` e `DELETE /api/mobile/devices` |
 
 ## Payload conceitual do formulário agregado
 
@@ -61,6 +63,44 @@ Os endpoints individuais permanecem para compatibilidade. O app deve usar `POST 
 ```
 
 O payload acima é uma proposta de trabalho, não um contrato aprovado. A primeira versão deve suportar um único check-in agregado para todos os procedimentos ativos e permitir edição até uma hora após o envio.
+
+## Registro de dispositivo para push
+
+Ambos os endpoints exigem o JWT de paciente. O alvo desta etapa é Android apenas.
+
+### `POST /api/mobile/devices`
+
+Registra ou atualiza o token de push do dispositivo autenticado. Responde `200`.
+
+```json
+{
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "ANDROID",
+  "deviceId": "string | opcional"
+}
+```
+
+O cliente envia o token do Expo Push Service e persiste localmente o último token registrado, repetindo a chamada somente quando o token muda.
+
+### `DELETE /api/mobile/devices?token={token}`
+
+Remove o registro do token. Responde `200` em caso de sucesso e `404` quando o token não existe ou pertence a outro usuário.
+
+O cliente chama este endpoint antes do `POST /auth/logout`, porque a remoção depende da sessão ainda válida. O `404` é tratado como sucesso: o objetivo é apenas garantir que o dispositivo deixe de receber notificações do paciente.
+
+### Payload esperado na notificação
+
+O toque na notificação abre a aba de alertas. Para abrir um alerta específico, o `data` deve conter o identificador:
+
+```json
+{
+  "data": {
+    "alertId": "string"
+  }
+}
+```
+
+O cliente aceita `alertId` e `alert_id`, e navega para a lista sem destaque quando o campo está ausente.
 
 ## Erros que o cliente precisa distinguir
 

@@ -7,6 +7,9 @@ import type {
 import type { ApiResponse } from '@/src/shared/types/api';
 import { emptyTokenStore, type TokenStore } from './token-store';
 
+/** Rota de registro de push token do paciente. */
+const DEVICES_PATH = '/api/mobile/devices';
+
 export type ApiClientOptions = {
   baseUrl: string;
   tokenStore?: TokenStore;
@@ -56,6 +59,10 @@ export class ApiClient {
       method: 'PATCH',
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+  }
+
+  async delete<T>(path: string, init?: RequestInit): Promise<T> {
+    return this.request<T>(path, { ...init, method: 'DELETE' });
   }
 
   async loginPatient(email: string, password: string): Promise<PatientAuthResponse> {
@@ -129,6 +136,14 @@ export class ApiClient {
       .then(unwrapResponse);
   }
 
+  async registerPushToken(request: RegisterDeviceRequest): Promise<void> {
+    await this.post<ApiResponse<null>>(DEVICES_PATH, request);
+  }
+
+  async unregisterPushToken(token: string): Promise<void> {
+    await this.delete<ApiResponse<null>>(`${DEVICES_PATH}?token=${encodeURIComponent(token)}`);
+  }
+
   async changePassword(currentPassword: string, newPassword: string, confirmNewPassword: string): Promise<void> {
     await this.patch<ApiResponse<null>>('/auth/change-password', { currentPassword, newPassword, confirmNewPassword });
   }
@@ -161,6 +176,12 @@ export class ApiClient {
     return payload as T;
   }
 }
+
+export type RegisterDeviceRequest = {
+  token: string;
+  platform: string;
+  deviceId?: string;
+};
 
 export type UpdateProfileRequest = {
   fullName?: string;
