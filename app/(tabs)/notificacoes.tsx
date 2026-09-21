@@ -50,7 +50,7 @@ export default function Notifications() {
   }
 
   return (
-    <Screen className="bg-neutral-100 p-8 dark:bg-theme-dark-background">
+    <Screen className="bg-neutral-100 p-8 dark:bg-theme-dark-background pb-24">
       <ScrollView contentContainerClassName="flex-grow gap-5 pb-10">
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Alertas</Text>
@@ -59,7 +59,9 @@ export default function Notifications() {
 
         {error ? <ErrorState description={error} onRetry={() => void loadAlerts()} /> : null}
         {!error && alerts.length === 0 ? (
-          <EmptyState title="Nenhum alerta recente" description="Nenhuma informação fora da faixa normal foi identificada nos últimos 7 dias." />
+          <View className="flex-1 items-center justify-center">
+            <EmptyState title="Nenhum alerta recente" description="Nenhuma informação fora da faixa normal foi identificada nos últimos 7 dias." />
+          </View>
         ) : null}
         {!error ? alerts.map(alert => <AlertCard key={alert.id} alert={alert} />) : null}
         {!error && !lastPage ? (

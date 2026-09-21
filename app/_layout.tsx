@@ -13,20 +13,20 @@ import { toastConfig } from '@/components/ui/toast-config';
 import { ensureAndroidNotificationChannel } from '@/src/infrastructure/api/push-service';
 import { notify } from '@/src/shared/notify';
 import {
-    IBMPlexMono_500Medium,
-    IBMPlexMono_600SemiBold,
-    IBMPlexMono_700Bold,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+  IBMPlexMono_700Bold,
 } from '@expo-google-fonts/ibm-plex-mono';
 import {
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import {
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 
 import '@/global.css';
@@ -88,7 +88,7 @@ export default function RootLayout() {
             expo-router a partir da pasta app/. */}
         <Stack.Screen name="orientacoes-nao-estou-bem" options={{ title: 'Quando procurar a equipe médica' }} />
       </Stack>
-      <Toast config={toastConfig} />
+      <Toast config={toastConfig} position="top" topOffset={56} visibilityTime={4000} />
     </>
   );
 }
