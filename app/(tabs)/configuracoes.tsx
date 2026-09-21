@@ -451,67 +451,61 @@ export default function Settings() {
 
   // Tela principal
   return (
-    <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
-      <View className="flex-1 gap-5 px-5 pb-8 pt-2">
-        {/* Título */}
-        <View>
-          <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">
-            Configurações
-          </Text>
-          <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">
-            Preferências e acesso à sua conta.
-          </Text>
-        </View>
-
-        {/* Seção de conta */}
-        <Card title="Conta">
-          <MenuItem
-            description="Edite as informações da sua conta."
-            label="Editar conta"
-            onPress={() => setSection('editAccount')}
-          />
-          <MenuItem
-            description="Altere a senha de acesso à sua conta."
-            label="Alterar senha"
-            showDivider={false}
-            onPress={() => setSection('changePassword')}
-          />
-        </Card>
-
-        {/* Seção sobre */}
-        <Card title="Sobre">
-          <MenuItem
-            description="Consulte os termos de privacidade e informações importantes sobre o uso da plataforma."
-            label="Termos de privacidade"
-            onPress={() => setSection('privacyPolicy')}
-          />
-          <MenuItem
-            description="Conheça nossa equipe e saiba mais sobre o projeto."
-            label="Sobre nós"
-            onPress={() => setSection('about')}
-          />
-          <MenuItem
-            description="Entre em contato conosco por e-mail."
-            label="Contate-nos"
-            showDivider={false}
-            onPress={() => void Linking.openURL('mailto:tcc.cc.aacijl@gmail.com')}
-          />
-        </Card>
-
-        {/* Spacer */}
-        <View className="flex-1" />
-
-        {/* Botão de logout */}
-        <Button
-          fullWidth
-          loading={loading}
-          loadingText="Saindo..."
-          variant="destructive"
-          onPress={() => void logout()}
-        >
-          Sair da conta
-        </Button>
+    <Screen className="bg-neutral-100 dark:bg-theme-dark-background p-8 gap-5">
+      {/* Título */}
+      <View>
+        <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">
+          Configurações
+        </Text>
+        <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">
+          Preferências e acesso à sua conta.
+        </Text>
       </View>
+
+      {/* Seção de conta */}
+      <Card title="Conta">
+        <MenuItem
+          description="Edite as informações da sua conta."
+          label="Editar conta"
+          onPress={() => setSection('editAccount')}
+        />
+        <MenuItem
+          description="Altere a senha de acesso à sua conta."
+          label="Alterar senha"
+          showDivider={false}
+          onPress={() => setSection('changePassword')}
+        />
+      </Card>
+
+      {/* Seção sobre */}
+      <Card title="Sobre">
+        <MenuItem
+          description="Consulte os termos de privacidade e informações importantes sobre o uso da plataforma."
+          label="Termos de privacidade"
+          onPress={() => setSection('privacyPolicy')}
+        />
+        <MenuItem
+          description="Conheça nossa equipe e saiba mais sobre o projeto."
+          label="Sobre nós"
+          onPress={() => setSection('about')}
+        />
+        <MenuItem
+          description="Entre em contato conosco por e-mail."
+          label="Contate-nos"
+          showDivider={false}
+          onPress={() => void Linking.openURL('mailto:tcc.cc.aacijl@gmail.com')}
+        />
+      </Card>
+
+      <Button
+        fullWidth
+        loading={loading}
+        loadingText="Saindo..."
+        variant="destructive"
+        onPress={() => void logout()}
+      >
+        Sair da conta
+      </Button>
     </Screen>
   );
 }
