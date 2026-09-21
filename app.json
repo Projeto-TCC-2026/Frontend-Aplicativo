@@ -11,6 +11,10 @@
       "supportsTablet": true
     },
     "android": {
+      "permissions": [
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_STEPS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
@@ -41,7 +45,25 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "Permitir que o Recupera Saúde leia seus dados de saúde.",
+          "healthUpdatePermission": "Permitir que o Recupera Saúde atualize seus dados de saúde."
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
