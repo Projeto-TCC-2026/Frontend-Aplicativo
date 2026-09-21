@@ -1,9 +1,9 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { createApiClient } from './api-config';
+import { isPushSupported, loadNotifications } from './push-availability';
 import {
     clearRegisteredPushToken,
     getRegisteredPushToken,
@@ -16,19 +16,30 @@ export const ANDROID_ALERT_CHANNEL_ID = 'recupera-saude.clinical-alerts';
 /** Plataforma enviada ao Backend no registro do device. */
 export type PushPlatform = 'ANDROID';
 
+export { isPushSupported };
+
 /**
+ * Registra o handler de primeiro plano. Antes isso rodava no escopo do módulo,
+ * o que quebrava a inicialização no Expo Go Android; agora é explícito e só é
+ * chamado onde o push existe.
+ *
  * Com o app em primeiro plano o banner do sistema é suprimido e o aviso é dado
  * pelo toast in-app, evitando alerta duplicado. O som é mantido para o alerta
  * clínico não passar silencioso. Fora do primeiro plano vale o canal Android.
  */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: false,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+export async function initPushHandlers(): Promise<void> {
+  const notifications = await loadNotifications();
+  if (!notifications) return;
+
+  notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: false,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 /**
  * Canal Android usado por todas as notificações do app. Importância MAX para
@@ -39,10 +50,13 @@ Notifications.setNotificationHandler({
 export async function ensureAndroidNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
-  await Notifications.setNotificationChannelAsync(ANDROID_ALERT_CHANNEL_ID, {
+  const notifications = await loadNotifications();
+  if (!notifications) return;
+
+  await notifications.setNotificationChannelAsync(ANDROID_ALERT_CHANNEL_ID, {
     name: 'Alertas de saúde',
-    importance: Notifications.AndroidImportance.MAX,
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    importance: notifications.AndroidImportance.MAX,
+    lockscreenVisibility: notifications.AndroidNotificationVisibility.PUBLIC,
     sound: 'default',
     enableVibrate: true,
     vibrationPattern: [0, 250, 250, 250],
@@ -56,11 +70,14 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
  */
 export async function requestPushPermission(): Promise<boolean> {
   try {
-    const current = await Notifications.getPermissionsAsync();
+    const notifications = await loadNotifications();
+    if (!notifications) return false;
+
+    const current = await notifications.getPermissionsAsync();
     if (current.granted) return true;
     if (!current.canAskAgain) return false;
 
-    const requested = await Notifications.requestPermissionsAsync();
+    const requested = await notifications.requestPermissionsAsync();
     return requested.granted;
   } catch {
     return false;
@@ -72,8 +89,11 @@ export async function requestPushPermission(): Promise<boolean> {
  * é substituir a chamada abaixo por `Notifications.getDevicePushTokenAsync()`.
  */
 async function fetchPushToken(): Promise<string | null> {
+  const notifications = await loadNotifications();
+  if (!notifications) return null;
+
   const projectId = getExpoProjectId();
-  const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+  const token = await notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
   return token.data || null;
 }
 
@@ -82,6 +102,7 @@ async function fetchPushToken(): Promise<string | null> {
  * Retorna null em emulador, permissão negada ou falha de rede, nunca lança.
  */
 export async function getPushToken(): Promise<string | null> {
+  if (!isPushSupported) return null;
   if (!Device.isDevice) return null;
 
   try {

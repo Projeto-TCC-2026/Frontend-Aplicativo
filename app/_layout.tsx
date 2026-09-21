@@ -1,6 +1,5 @@
 import { colors } from '@/constants/design-tokens';
 import { useFonts } from 'expo-font';
-import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +9,8 @@ import { useColorScheme } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { toastConfig } from '@/components/ui/toast-config';
-import { ensureAndroidNotificationChannel } from '@/src/infrastructure/api/push-service';
+import { isPushSupported, loadNotifications } from '@/src/infrastructure/api/push-availability';
+import { ensureAndroidNotificationChannel, initPushHandlers } from '@/src/infrastructure/api/push-service';
 import { notify } from '@/src/shared/notify';
 import {
   IBMPlexMono_500Medium,
@@ -28,6 +28,7 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+import type { EventSubscription } from 'expo-modules-core';
 
 import '@/global.css';
 
@@ -58,23 +59,40 @@ export default function RootLayout() {
     void SystemUI.setBackgroundColorAsync(colorScheme === 'dark' ? colors.darkBackground : colors.neutral100);
   }, [colorScheme]);
 
+  // O push remoto não existe no Expo Go Android desde o SDK 53 e o import de
+  // `expo-notifications` lança na avaliação do módulo naquele ambiente. Por
+  // isso o módulo é carregado dinamicamente, só quando há suporte.
   useEffect(() => {
-    void ensureAndroidNotificationChannel();
+    if (!isPushSupported) return;
 
-    const receivedSubscription = Notifications.addNotificationReceivedListener(notification => {
-      const { title, body } = notification.request.content;
-      if (title || body) {
-        notify.info(body ?? '', title ?? undefined);
-      }
-    });
+    let cancelled = false;
+    let subscriptions: EventSubscription[] = [];
 
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      openAlertFromNotification(response.notification.request.content.data);
-    });
+    void (async () => {
+      const notifications = await loadNotifications();
+      if (!notifications || cancelled) return;
+
+      await initPushHandlers();
+      await ensureAndroidNotificationChannel();
+      if (cancelled) return;
+
+      subscriptions = [
+        notifications.addNotificationReceivedListener(notification => {
+          const { title, body } = notification.request.content;
+          if (title || body) {
+            notify.info(body ?? '', title ?? undefined);
+          }
+        }),
+        notifications.addNotificationResponseReceivedListener(response => {
+          openAlertFromNotification(response.notification.request.content.data);
+        }),
+      ];
+    })();
 
     return () => {
-      receivedSubscription.remove();
-      responseSubscription.remove();
+      cancelled = true;
+      subscriptions.forEach(subscription => subscription.remove());
+      subscriptions = [];
     };
   }, []);
 

@@ -20,7 +20,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.tcc26.recuperasaude",
-      "google-services": "./google-services.json"
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
