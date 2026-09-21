@@ -5,6 +5,7 @@ import type {
     CheckinForm,
 } from '@/src/domain/checkin';
 import type { ApiResponse } from '@/src/shared/types/api';
+import { savePatientFullName } from './secure-token-store';
 import { emptyTokenStore, type TokenStore } from './token-store';
 
 /** Rota de registro de push token do paciente. */
@@ -69,6 +70,11 @@ export class ApiClient {
     const response = await this.post<ApiResponse<PatientAuthResponse>>('/auth/patient/login', { email, password });
     const tokens = unwrapResponse(response);
     await this.tokenStore.saveTokens(tokens);
+    // O `fullName` só vem nesta resposta: `GET /auth/me` não preenche o campo
+    // para o perfil de paciente. Guardamos aqui para a saudação da Home.
+    if (tokens.fullName) {
+      await savePatientFullName(tokens.fullName);
+    }
     return tokens;
   }
 

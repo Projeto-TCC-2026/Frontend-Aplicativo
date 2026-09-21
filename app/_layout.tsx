@@ -83,7 +83,11 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* As demais rotas continuam sendo resolvidas automaticamente pelo
+            expo-router a partir da pasta app/. */}
+        <Stack.Screen name="orientacoes-nao-estou-bem" options={{ title: 'Quando procurar a equipe médica' }} />
+      </Stack>
       <Toast config={toastConfig} />
     </>
   );
