@@ -84,7 +84,7 @@ export default function RootLayout() {
     <>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }} />
-      <Toast config={toastConfig} />
+      <Toast config={toastConfig} position="top" topOffset={56} visibilityTime={4000} />
     </>
   );
 }
