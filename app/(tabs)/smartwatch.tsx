@@ -37,34 +37,28 @@ export default function Smartwatch() {
           <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Leia dados compartilhados pelo app de saúde do seu telefone.</Text>
         </View>
 
-        {IN_DEVELOPMENT ? (
-          <View className="flex-1 items-center justify-center">
-            <Text className="font-body text-xl text-white text-center">Em desenvolvimento</Text>
-          </View>
-        ) : (
-          <View className="mt-6">
-            <Card title="Dados de saúde" subtitle={snapshot ? `Fonte: ${snapshot.source}` : 'Aguardando conexão e permissões'}>
-              {loading ? (
-                <View className="items-center py-6">
-                  <ActivityIndicator />
-                  <Text className="mt-3 font-body text-neutral-700 dark:text-theme-dark-text-secondary">Solicitando acesso...</Text>
+        <View className="mt-6">
+          <Card title="Dados de saúde" subtitle={snapshot ? `Fonte: ${snapshot.source}` : 'Aguardando conexão e permissões'}>
+            {loading ? (
+              <View className="items-center py-6">
+                <ActivityIndicator />
+                <Text className="mt-3 font-body text-neutral-700 dark:text-theme-dark-text-secondary">Solicitando acesso...</Text>
+              </View>
+            ) : error ? (
+              <View>
+                <Text className="font-body text-semantic-critical">{error}</Text>
+                <View className="mt-4">
+                  <Button onPress={() => void connect()}>Tentar novamente</Button>
                 </View>
-              ) : error ? (
-                <View>
-                  <Text className="font-body text-semantic-critical">{error}</Text>
-                  <View className="mt-4">
-                    <Button onPress={() => void connect()}>Tentar novamente</Button>
-                  </View>
-                </View>
-              ) : (
-                <View className="gap-3">
-                  <HealthValue label="Frequência cardíaca" value={snapshot?.heartRate != null ? `${snapshot.heartRate} bpm` : 'Sem registro recente'} />
-                  <HealthValue label="Passos hoje" value={snapshot?.steps != null ? snapshot.steps.toLocaleString('pt-BR') : 'Sem registro hoje'} />
-                </View>
-              )}
-            </Card>
-          </View>
-        )}
+              </View>
+            ) : (
+              <View className="gap-3">
+                <HealthValue label="Frequência cardíaca" value={snapshot?.heartRate != null ? `${snapshot.heartRate} bpm` : 'Sem registro recente'} />
+                <HealthValue label="Passos hoje" value={snapshot?.steps != null ? snapshot.steps.toLocaleString('pt-BR') : 'Sem registro hoje'} />
+              </View>
+            )}
+          </Card>
+        </View>
       </ScrollView>
     </Screen>
   );

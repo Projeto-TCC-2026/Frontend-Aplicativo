@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "frontend-tcc-app",
-    "slug": "frontend-tcc-app",
+    "name": "Recupera Saúde",
+    "slug": "recupera-saude",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontendtccapp",
+    "scheme": "recuperasaude",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
@@ -46,13 +46,6 @@
       "expo-web-browser",
       "expo-secure-store",
       "expo-notifications",
-      [
-        "react-native-health",
-        {
-          "healthSharePermission": "Permitir que o Recupera Saúde leia seus dados de saúde.",
-          "healthUpdatePermission": "Permitir que o Recupera Saúde atualize seus dados de saúde."
-        }
-      ],
       "react-native-health-connect",
       [
         "expo-build-properties",
@@ -63,18 +56,19 @@
             "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "tcc-26",
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "902fc26a-e533-47fb-b7af-a68be91fd11a"
+        "projectId": "a3833269-ec06-4551-a936-6b02c5d0f3f7"
       }
-    },
-    "owner": "tcc-26"
+    }
   }
 }
