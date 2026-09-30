@@ -29,6 +29,7 @@ Paciente em acompanhamento por um médico. O paciente não configura procediment
 - Edição de um check-in por até uma hora após o envio, conforme política do Backend.
 - Notificações push relacionadas ao próprio paciente.
 - Configuração de permissões e integração de saúde, quando disponível na plataforma.
+- Coleta local de frequência cardíaca, oxigenação do sangue e passos via Health Connect no Android, habilitada pelo paciente e executada em segundo plano quando o sistema permitir.
 
 ## Fora do escopo inicial
 
@@ -37,7 +38,7 @@ Paciente em acompanhamento por um médico. O paciente não configura procediment
 - Avaliação clínica local.
 - Comunicação direta paciente-médico em tempo real.
 - Decisão local sobre severidade de alertas.
-- Integração com smartwatch na primeira versão.
+- Envio automático das leituras do smartwatch ao Backend, até que o contrato de ingestão de dados de saúde esteja definido.
 
 ## Critérios de sucesso do primeiro fluxo
 

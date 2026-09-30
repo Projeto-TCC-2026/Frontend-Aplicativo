@@ -5,6 +5,7 @@ import type { TokenStore } from './token-store';
 const ACCESS_TOKEN_KEY = 'recupera-saude.access-token';
 const REFRESH_TOKEN_KEY = 'recupera-saude.refresh-token';
 const FULL_NAME_KEY = 'recupera-saude.full-name';
+const PATIENT_ID_KEY = 'recupera-saude.patient-id';
 
 export const secureTokenStore: TokenStore = {
   getAccessToken: () => SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
@@ -18,6 +19,7 @@ export const secureTokenStore: TokenStore = {
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
       SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
       SecureStore.deleteItemAsync(FULL_NAME_KEY),
+      SecureStore.deleteItemAsync(PATIENT_ID_KEY),
     ]);
   },
 };
@@ -33,4 +35,12 @@ export async function savePatientFullName(fullName: string): Promise<void> {
 
 export async function getPatientFullName(): Promise<string | null> {
   return SecureStore.getItemAsync(FULL_NAME_KEY);
+}
+
+export async function savePatientId(patientId: string): Promise<void> {
+  await SecureStore.setItemAsync(PATIENT_ID_KEY, patientId);
+}
+
+export async function getPatientId(): Promise<string | null> {
+  return SecureStore.getItemAsync(PATIENT_ID_KEY);
 }

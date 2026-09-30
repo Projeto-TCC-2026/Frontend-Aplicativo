@@ -64,6 +64,16 @@ Os endpoints individuais permanecem para compatibilidade. O app deve usar `POST 
 
 O payload acima é uma proposta de trabalho, não um contrato aprovado. A primeira versão deve suportar um único check-in agregado para todos os procedimentos ativos e permitir edição até uma hora após o envio.
 
+## Coleta e envio do smartwatch
+
+No Android, o app lê frequência cardíaca, oxigenação no sangue e passos do Health Connect quando o paciente habilita a coleta. O agendamento atual usa uma tentativa mínima de 1 minuto para teste (o sistema operacional pode atrasá-la); antes da versão final, alterar `COLLECTION_INTERVAL_MINUTES` para 60 em `smartwatch-background-service.ts`.
+
+Cada coleta com ao menos uma medida envia `POST` para a Function URL `IngestionUrl` da stack `AWS/monitoramento`. Configure essa URL em `EXPO_PUBLIC_MONITORAMENTO_INGESTION_URL`. O payload contém `patientId` salvo no login, `collectedAt` e `readings` com tipos `heartRate`, `spo2` e `steps`; a AWS valida o corpo e enfileira as medidas para o fluxo de processamento e análise de risco.
+
+**Limitação atual: o envio à Function URL não significa que a leitura foi salva no banco.** `AWS/monitoramento/src/processor/services/persistence.service.mjs` ainda simula persistência e retorna um ID mock. O endpoint do Backend `POST /api/integration/alerts/evaluate` valida limites e cria alertas, mas sua implementação declara que não persiste a leitura. É necessário implementar a persistência no processador/Backend antes de considerar a gravação concluída. A Function URL está configurada com `AuthType: NONE`; não envie nela segredos ou dados além dos exigidos.
+
+As permissões de leitura e `READ_HEALTH_DATA_IN_BACKGROUND` são configuradas em `app.json` e incluídas no `android/app/src/main/AndroidManifest.xml` pelo prebuild do Expo. Se o diretório Android já existir, execute `npx expo prebuild --platform android` antes de reconstruir e reinstalar o aplicativo; atualizar apenas o bundle JavaScript não atualiza o manifesto instalado.
+
 ## Registro de dispositivo para push
 
 Ambos os endpoints exigem o JWT de paciente. O alvo desta etapa é Android apenas.

@@ -5,7 +5,7 @@ import type {
     CheckinForm,
 } from '@/src/domain/checkin';
 import type { ApiResponse } from '@/src/shared/types/api';
-import { savePatientFullName } from './secure-token-store';
+import { savePatientFullName, savePatientId } from './secure-token-store';
 import { emptyTokenStore, type TokenStore } from './token-store';
 
 /** Rota de registro de push token do paciente. */
@@ -74,6 +74,9 @@ export class ApiClient {
     // para o perfil de paciente. Guardamos aqui para a saudação da Home.
     if (tokens.fullName) {
       await savePatientFullName(tokens.fullName);
+    }
+    if (tokens.patientId) {
+      await savePatientId(tokens.patientId);
     }
     return tokens;
   }

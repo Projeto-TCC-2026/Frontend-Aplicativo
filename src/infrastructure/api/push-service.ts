@@ -5,10 +5,10 @@ import { Platform } from 'react-native';
 import { createApiClient } from './api-config';
 import { isPushSupported, loadNotifications } from './push-availability';
 import {
-    clearRegisteredPushToken,
-    getRegisteredPushToken,
-    hasPushTokenChanged,
-    saveRegisteredPushToken,
+  clearRegisteredPushToken,
+  getRegisteredPushToken,
+  hasPushTokenChanged,
+  saveRegisteredPushToken,
 } from './push-token-store';
 
 export const ANDROID_ALERT_CHANNEL_ID = 'recupera-saude.clinical-alerts';
@@ -23,17 +23,18 @@ export { isPushSupported };
  * o que quebrava a inicialização no Expo Go Android; agora é explícito e só é
  * chamado onde o push existe.
  *
- * Com o app em primeiro plano o banner do sistema é suprimido e o aviso é dado
- * pelo toast in-app, evitando alerta duplicado. O som é mantido para o alerta
- * clínico não passar silencioso. Fora do primeiro plano vale o canal Android.
+ * Pushes em primeiro plano continuam usando toast para evitar banners
+ * duplicados; notificações locais da coleta do smartwatch exibem banner.
+ * O som é mantido para alertas clínicos.
  */
 export async function initPushHandlers(): Promise<void> {
   const notifications = await loadNotifications();
   if (!notifications) return;
 
   notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: false,
+    handleNotification: async notification => ({
+      shouldShowBanner:
+        notification.request.content.data?.type === 'SMARTWATCH_DATA_COLLECTED',
       shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
@@ -57,7 +58,6 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
     name: 'Alertas de saúde',
     importance: notifications.AndroidImportance.MAX,
     lockscreenVisibility: notifications.AndroidNotificationVisibility.PUBLIC,
-    sound: 'default',
     enableVibrate: true,
     vibrationPattern: [0, 250, 250, 250],
     showBadge: true,

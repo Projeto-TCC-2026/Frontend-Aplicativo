@@ -13,7 +13,9 @@
     "android": {
       "permissions": [
         "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_STEPS"
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
@@ -57,7 +59,8 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,

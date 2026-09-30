@@ -1,11 +1,12 @@
 import { colors } from '@/constants/design-tokens';
+import { isRunningInExpoGo } from 'expo';
 import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { toastConfig } from '@/components/ui/toast-config';
@@ -31,6 +32,12 @@ import {
 import type { EventSubscription } from 'expo-modules-core';
 
 import '@/global.css';
+
+if (Platform.OS === 'android' && !isRunningInExpoGo()) {
+  // Define a tarefa de coleta antes que o worker em segundo plano possa iniciar o app.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('@/src/infrastructure/health/smartwatch-background-service');
+}
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -79,6 +86,9 @@ export default function RootLayout() {
       subscriptions = [
         notifications.addNotificationReceivedListener(notification => {
           const { title, body } = notification.request.content;
+          if (notification.request.content.data?.type === 'SMARTWATCH_DATA_COLLECTED') {
+            return;
+          }
           if (title || body) {
             notify.info(body ?? '', title ?? undefined);
           }
