@@ -5,13 +5,21 @@ import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect } from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Platform, Text, useColorScheme } from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import { Button, Screen } from '@/components/ui';
 import { toastConfig } from '@/components/ui/toast-config';
+import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { isPushSupported, loadNotifications } from '@/src/infrastructure/api/push-availability';
 import { ensureAndroidNotificationChannel, initPushHandlers } from '@/src/infrastructure/api/push-service';
+import {
+  getSessionStatus,
+  setSessionStatus,
+  subscribeToSessionStatus,
+  type SessionStatus,
+} from '@/src/infrastructure/api/session-state';
 import { notify } from '@/src/shared/notify';
 import {
   IBMPlexMono_500Medium,
@@ -43,6 +51,7 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [sessionStatus, setLocalSessionStatus] = useState<SessionStatus>(getSessionStatus);
   const [fontsLoaded, fontError] = useFonts({
     Manrope_600SemiBold,
     Manrope_700Bold,
@@ -61,6 +70,21 @@ export default function RootLayout() {
       void SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  const restoreStoredSession = useCallback(async () => {
+    setSessionStatus('checking');
+    try {
+      await createApiClient().restoreSession();
+    } catch {
+      setSessionStatus('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSessionStatus(setLocalSessionStatus);
+    void restoreStoredSession();
+    return unsubscribe;
+  }, [restoreStoredSession]);
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colorScheme === 'dark' ? colors.darkBackground : colors.neutral100);
@@ -107,14 +131,32 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsLoaded && !fontError) return null;
+  if (sessionStatus === 'checking') return null;
+  if (sessionStatus === 'error') {
+    return (
+      <Screen className="items-center justify-center gap-4 bg-neutral-100 p-5 dark:bg-theme-dark-background">
+        <Text className="font-body text-center text-neutral-700 dark:text-theme-dark-text-secondary">
+          Não foi possível verificar sua sessão. Verifique sua conexão e tente novamente.
+        </Text>
+        <Button onPress={() => void restoreStoredSession()}>Tentar novamente</Button>
+      </Screen>
+    );
+  }
 
   return (
     <>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
-        {/* As demais rotas continuam sendo resolvidas automaticamente pelo
-            expo-router a partir da pasta app/. */}
-        <Stack.Screen name="orientacoes-nao-estou-bem" options={{ title: 'Quando procurar a equipe médica' }} />
+        <Stack.Protected guard={sessionStatus === 'authenticated'}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="checkin" />
+          <Stack.Screen name="components-demo" />
+          <Stack.Screen name="orientacoes-nao-estou-bem" options={{ title: 'Quando procurar a equipe médica' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={sessionStatus === 'unauthenticated'}>
+          <Stack.Screen name="login" />
+          <Stack.Screen name="esqueci-a-senha" />
+        </Stack.Protected>
       </Stack>
       <Toast config={toastConfig} position="top" topOffset={56} visibilityTime={4000} />
     </>

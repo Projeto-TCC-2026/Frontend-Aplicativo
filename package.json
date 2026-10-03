@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test:auth": "node --import ./tests/register-loader.mjs --test tests/api-client-session.test.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",

@@ -22,6 +22,8 @@ Os endpoints individuais permanecem para compatibilidade. O app deve usar `POST 
 
 - Base URL configurável por ambiente.
 - JWT com refresh seguro.
+- Ao iniciar o app, renovar a sessão armazenada antes de liberar qualquer rota protegida.
+- Os prazos do access token e do refresh token são definidos pelo Backend; este app não configura nem prolonga esses prazos. O valor atual precisa ser confirmado na configuração/contrato do Backend.
 - Resposta de erro consistente, com código, mensagem e detalhes de validação.
 - Datas em ISO-8601 com timezone explícito.
 - IDs tratados como string no cliente para evitar acoplamento ao tipo numérico do Backend.

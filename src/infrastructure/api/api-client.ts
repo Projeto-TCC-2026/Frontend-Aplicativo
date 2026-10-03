@@ -7,6 +7,8 @@ import type {
 import type { ApiResponse } from '@/src/shared/types/api';
 import { savePatientFullName, savePatientId } from './secure-token-store';
 import { emptyTokenStore, type TokenStore } from './token-store';
+import { restoreSession } from './session-bootstrap';
+import { setSessionStatus } from './session-state';
 
 /** Rota de registro de push token do paciente. */
 const DEVICES_PATH = '/api/mobile/devices';
@@ -67,7 +69,11 @@ export class ApiClient {
   }
 
   async loginPatient(email: string, password: string): Promise<PatientAuthResponse> {
-    const response = await this.post<ApiResponse<PatientAuthResponse>>('/auth/patient/login', { email, password });
+    const response = await this.request<ApiResponse<PatientAuthResponse>>(
+      '/auth/patient/login',
+      { method: 'POST', body: JSON.stringify({ email, password }) },
+      false,
+    );
     const tokens = unwrapResponse(response);
     await this.tokenStore.saveTokens(tokens);
     // O `fullName` só vem nesta resposta: `GET /auth/me` não preenche o campo
@@ -78,7 +84,17 @@ export class ApiClient {
     if (tokens.patientId) {
       await savePatientId(tokens.patientId);
     }
+    setSessionStatus('authenticated');
     return tokens;
+  }
+
+  async restoreSession(): Promise<boolean> {
+    const authenticated = await restoreSession({
+      tokenStore: this.tokenStore,
+      refresh: () => this.refresh(),
+    });
+    setSessionStatus(authenticated ? 'authenticated' : 'unauthenticated');
+    return authenticated;
   }
 
   async refresh(): Promise<boolean> {
@@ -86,13 +102,20 @@ export class ApiClient {
     if (!refreshToken) return false;
 
     if (!this.refreshPromise) {
-      this.refreshPromise = this.post<ApiResponse<RefreshTokenResponse>>('/auth/refresh', { refreshToken })
+      this.refreshPromise = this.request<ApiResponse<RefreshTokenResponse>>(
+        '/auth/refresh',
+        { method: 'POST', body: JSON.stringify({ refreshToken }) },
+        false,
+      )
         .then(unwrapResponse)
         .then(async (response) => {
           await this.tokenStore.saveTokens(response);
           return true;
         })
-        .catch(() => false)
+        .catch((error: unknown) => {
+          if (error instanceof ApiClientError && error.status === 401) return false;
+          throw error;
+        })
         .finally(() => {
           this.refreshPromise = null;
         });
@@ -111,7 +134,11 @@ export class ApiClient {
         }, false);
       }
     } finally {
-      await this.tokenStore.clear();
+      try {
+        await this.tokenStore.clear();
+      } finally {
+        setSessionStatus('unauthenticated');
+      }
     }
   }
 
@@ -167,10 +194,25 @@ export class ApiClient {
     headers.set('Accept', 'application/json');
     if (init.body !== undefined) headers.set('Content-Type', 'application/json');
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+    if (path === '/auth/refresh' || path === '/auth/patient/login') headers.delete('Authorization');
 
     const response = await this.fetcher(`${this.baseUrl}${path}`, { ...init, headers });
-    if (response.status === 401 && retryOnUnauthorized && await this.refresh()) {
-      return this.request<T>(path, init, false);
+    if (response.status === 401 && retryOnUnauthorized) {
+      let refreshed: boolean;
+      try {
+        refreshed = await this.refresh();
+      } catch (error) {
+        setSessionStatus('error');
+        throw error;
+      }
+      if (refreshed) {
+        return this.request<T>(path, init, false);
+      }
+      try {
+        await this.tokenStore.clear();
+      } finally {
+        setSessionStatus('unauthenticated');
+      }
     }
 
     const payload = await readPayload(response);
