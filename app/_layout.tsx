@@ -5,37 +5,51 @@ import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Text, useColorScheme } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { Button, Screen } from '@/components/ui';
 import { toastConfig } from '@/components/ui/toast-config';
+import {
+    answerFromNotificationAction,
+    openAlertResponseScreen,
+} from '@/src/application/alert-response';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { isPushSupported, loadNotifications } from '@/src/infrastructure/api/push-availability';
-import { ensureAndroidNotificationChannel, initPushHandlers } from '@/src/infrastructure/api/push-service';
 import {
-  getSessionStatus,
-  setSessionStatus,
-  subscribeToSessionStatus,
-  type SessionStatus,
+    ensureAndroidNotificationChannel,
+    ensureSevereCheckCategory,
+    initPushHandlers
+} from '@/src/infrastructure/api/push-service';
+import {
+    getSessionStatus,
+    setSessionStatus,
+    subscribeToSessionStatus,
+    type SessionStatus,
 } from '@/src/infrastructure/api/session-state';
+import {
+    DEFAULT_NOTIFICATION_ACTION,
+    isSevereCheckPayload,
+    readAlertAnswer,
+    readAlertId,
+} from '@/src/infrastructure/api/severe-check-notification';
 import { notify } from '@/src/shared/notify';
 import {
-  IBMPlexMono_500Medium,
-  IBMPlexMono_600SemiBold,
-  IBMPlexMono_700Bold,
+    IBMPlexMono_500Medium,
+    IBMPlexMono_600SemiBold,
+    IBMPlexMono_700Bold,
 } from '@expo-google-fonts/ibm-plex-mono';
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import {
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import type { EventSubscription } from 'expo-modules-core';
 
@@ -49,9 +63,20 @@ if (Platform.OS === 'android' && !isRunningInExpoGo()) {
 
 void SplashScreen.preventAutoHideAsync();
 
+/** Interação com uma notificação, normalizada para a fila. */
+type NotificationInteraction = {
+  identifier: string;
+  actionIdentifier: string;
+  data: Record<string, unknown> | undefined;
+};
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [sessionStatus, setLocalSessionStatus] = useState<SessionStatus>(getSessionStatus);
+  // As telas de alerta só existem na navegação autenticada. Interações que
+  // chegam antes da sessão ser restaurada ficam nesta fila (ref, não state,
+  // para não disparar renders em cascata a partir do efeito que a esvazia).
+  const pendingResponses = useRef<NotificationInteraction[]>([]);
   const [fontsLoaded, fontError] = useFonts({
     Manrope_600SemiBold,
     Manrope_700Bold,
@@ -90,6 +115,24 @@ export default function RootLayout() {
     void SystemUI.setBackgroundColorAsync(colorScheme === 'dark' ? colors.darkBackground : colors.neutral100);
   }, [colorScheme]);
 
+  // O `Stack` só é renderizado com a sessão autenticada E as fontes resolvidas;
+  // antes disso o componente retorna `null` e qualquer push/replace se perde.
+  const stackRendered = sessionStatus === 'authenticated' && (fontsLoaded || fontError !== null);
+  // Lido dentro do `drainPendingResponses`, que precisa manter identidade
+  // estável para não re-registrar os listeners de push a cada render.
+  const stackRenderedRef = useRef(stackRendered);
+
+  /** Trata as interações na fila, uma vez que o `Stack` já está renderizado. */
+  const drainPendingResponses = useCallback(() => {
+    if (!stackRenderedRef.current || pendingResponses.current.length === 0) return;
+
+    const queued = pendingResponses.current;
+    pendingResponses.current = [];
+    for (const pending of queued) {
+      handleNotificationInteraction(pending);
+    }
+  }, []);
+
   // O push remoto não existe no Expo Go Android desde o SDK 53 e o import de
   // `expo-notifications` lança na avaliação do módulo naquele ambiente. Por
   // isso o módulo é carregado dinamicamente, só quando há suporte.
@@ -105,12 +148,48 @@ export default function RootLayout() {
 
       await initPushHandlers();
       await ensureAndroidNotificationChannel();
+      await ensureSevereCheckCategory();
       if (cancelled) return;
+
+      // App aberto pela notificação estando encerrado: o listener pode não
+      // existir ainda quando a resposta chega, então a última resposta é lida
+      // explicitamente no boot.
+      try {
+        const lastResponse = notifications.getLastNotificationResponse();
+        if (lastResponse) {
+          enqueueNotificationResponse(
+            {
+              identifier: lastResponse.notification.request.identifier,
+              actionIdentifier: lastResponse.actionIdentifier,
+              data: lastResponse.notification.request.content.data,
+            },
+            pendingResponses,
+          );
+          notifications.clearLastNotificationResponse();
+          drainPendingResponses();
+        }
+      } catch (error) {
+        console.error('Não foi possível ler a última resposta de notificação.', error);
+      }
 
       subscriptions = [
         notifications.addNotificationReceivedListener(notification => {
-          const { title, body } = notification.request.content;
-          if (notification.request.content.data?.type === 'SMARTWATCH_DATA_COLLECTED') {
+          const { title, body, data } = notification.request.content;
+          if (data?.type === 'SMARTWATCH_DATA_COLLECTED') {
+            return;
+          }
+          // Alerta grave em primeiro plano abre a tela de resposta em vez de
+          // só exibir um toast.
+          if (isSevereCheckPayload(data)) {
+            enqueueNotificationResponse(
+              {
+                identifier: notification.request.identifier,
+                actionIdentifier: DEFAULT_NOTIFICATION_ACTION,
+                data,
+              },
+              pendingResponses,
+            );
+            drainPendingResponses();
             return;
           }
           if (title || body) {
@@ -118,7 +197,16 @@ export default function RootLayout() {
           }
         }),
         notifications.addNotificationResponseReceivedListener(response => {
-          openAlertFromNotification(response.notification.request.content.data);
+          enqueueNotificationResponse(
+            {
+              identifier: response.notification.request.identifier,
+              actionIdentifier: response.actionIdentifier,
+              data: response.notification.request.content.data,
+            },
+            pendingResponses,
+          );
+          notifications.clearLastNotificationResponse();
+          drainPendingResponses();
         }),
       ];
     })();
@@ -128,7 +216,14 @@ export default function RootLayout() {
       subscriptions.forEach(subscription => subscription.remove());
       subscriptions = [];
     };
-  }, []);
+  }, [drainPendingResponses]);
+
+  // Esvazia a fila quando o `Stack` passa a estar renderizado, cobrindo a
+  // interação que chegou antes da sessão ser restaurada ou das fontes carregarem.
+  useEffect(() => {
+    stackRenderedRef.current = stackRendered;
+    drainPendingResponses();
+  }, [drainPendingResponses, stackRendered]);
 
   if (!fontsLoaded && !fontError) return null;
   if (sessionStatus === 'checking') return null;
@@ -151,6 +246,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="checkin" />
           <Stack.Screen name="components-demo" />
+          <Stack.Screen name="responder-alerta" options={{ title: 'Você está bem?' }} />
           <Stack.Screen name="orientacoes-nao-estou-bem" options={{ title: 'Quando procurar a equipe médica' }} />
         </Stack.Protected>
         <Stack.Protected guard={sessionStatus === 'unauthenticated'}>
@@ -164,17 +260,38 @@ export default function RootLayout() {
 }
 
 /**
- * Abre a aba de alertas ao tocar na notificação. O `alertId` vem do data
- * payload e é repassado como parâmetro, para a tela destacar o alerta quando
- * houver suporte a esse detalhe.
+ * Enfileira a interação deduplicando por `identifier` + ação: o mesmo toque
+ * pode chegar pelo `getLastNotificationResponse` e pelo listener.
  */
-function openAlertFromNotification(data: Record<string, unknown> | undefined) {
-  const alertId = readAlertId(data);
-  router.push(alertId ? { pathname: '/notificacoes', params: { alertId } } : '/notificacoes');
+function enqueueNotificationResponse(
+  interaction: NotificationInteraction,
+  queue: { current: NotificationInteraction[] },
+) {
+  const alreadyQueued = queue.current.some(
+    pending =>
+      pending.identifier === interaction.identifier &&
+      pending.actionIdentifier === interaction.actionIdentifier,
+  );
+  if (!alreadyQueued) queue.current = [...queue.current, interaction];
 }
 
-function readAlertId(data: Record<string, unknown> | undefined): string | null {
-  const candidate = data?.alertId ?? data?.alert_id;
-  if (typeof candidate === 'string' && candidate.length > 0) return candidate;
-  return typeof candidate === 'number' ? String(candidate) : null;
+/**
+ * Trata o toque na notificação e os botões da categoria `severe-check`:
+ * botão responde direto ao backend; toque simples abre a tela de resposta.
+ * Qualquer outra notificação continua levando à aba de alertas.
+ */
+function handleNotificationInteraction({ actionIdentifier, data }: NotificationInteraction) {
+  const alertId = readAlertId(data);
+
+  if (isSevereCheckPayload(data) && alertId) {
+    const answer = readAlertAnswer(actionIdentifier);
+    if (answer) {
+      void answerFromNotificationAction(alertId, answer);
+      return;
+    }
+    openAlertResponseScreen(alertId);
+    return;
+  }
+
+  router.push(alertId ? { pathname: '/notificacoes', params: { alertId } } : '/notificacoes');
 }

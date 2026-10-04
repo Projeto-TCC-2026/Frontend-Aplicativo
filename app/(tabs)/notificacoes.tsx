@@ -3,9 +3,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, useColorScheme, View } from 'react-native';
 
 import { Button, Card, EmptyState, ErrorState, LoadingState, Screen, StatusBadge } from '@/components/ui';
-import type { PatientAlert } from '@/src/domain/alert';
-import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { colors } from '@/constants/design-tokens';
+import { openAlertResponseScreen } from '@/src/application/alert-response';
+import {
+    describeAlertStatus,
+    isAwaitingPatientResponse,
+    type PatientAlert,
+} from '@/src/domain/alert';
+import { createApiClient } from '@/src/infrastructure/api/api-config';
 
 const PAGE_SIZE = 20;
 
@@ -81,6 +86,7 @@ function AlertCard({ alert }: { alert: PatientAlert }) {
     : alert.severity.toUpperCase().includes('ATEN') ? 'attention' : 'info';
   const iconColor = tone === 'critical' ? colors.critical : tone === 'attention' ? colors.attention : isDark ? colors.darkAction : colors.info;
   const date = new Date(alert.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const awaitingResponse = isAwaitingPatientResponse(alert.status);
 
   return (
     <Card padding="md">
@@ -94,7 +100,18 @@ function AlertCard({ alert }: { alert: PatientAlert }) {
             <StatusBadge label={alert.severity} tone={tone} />
           </View>
           {alert.description ? <Text className="font-body text-sm leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">{alert.description}</Text> : null}
+          <Text className="font-body text-xs text-neutral-700 dark:text-theme-dark-text-secondary">{describeAlertStatus(alert.status)}</Text>
           <Text className="font-data text-[11px] text-neutral-500 dark:text-theme-dark-text-tertiary">{date}</Text>
+          {awaitingResponse ? (
+            <Button
+              accessibilityLabel={`Responder ao alerta ${alert.title}`}
+              onPress={() => openAlertResponseScreen(alert.id)}
+              size="sm"
+              variant="secondary"
+            >
+              Responder
+            </Button>
+          ) : null}
         </View>
       </View>
     </Card>

@@ -1,19 +1,27 @@
 import { Platform } from 'react-native';
 
 import {
-  getGrantedPermissions,
-  getSdkStatus,
-  initialize,
-  readRecords,
-  requestPermission,
-  SdkAvailabilityStatus,
-  type BackgroundAccessPermission,
-  type Permission,
+    getGrantedPermissions,
+    getSdkStatus,
+    initialize,
+    readRecords,
+    requestPermission,
+    SdkAvailabilityStatus,
+    type BackgroundAccessPermission,
+    type Permission,
 } from 'react-native-health-connect';
 
 export type HealthSnapshot = {
   heartRate: number | null;
+  /**
+   * Horário do próprio registro do Health Connect (amostra escolhida de
+   * frequência cardíaca), em ISO 8601 UTC. `null` quando não há leitura ou
+   * quando o horário vindo do provedor não é uma data válida.
+   */
+  heartRateMeasuredAt: string | null;
   oxygenSaturation: number | null;
+  /** Horário do registro de oxigenação usado, em ISO 8601 UTC. */
+  oxygenSaturationMeasuredAt: string | null;
   steps: number | null;
   source: 'Health Connect';
 };
@@ -98,21 +106,35 @@ async function requestAndVerifyPermissions(includeBackground: boolean): Promise<
   }
 }
 
+/**
+ * Normaliza o horário vindo do Health Connect para ISO 8601 UTC com "Z".
+ * O provedor devolve strings com offset local (ex.: `2026-10-04T08:12:00-03:00`),
+ * e a ingestão espera UTC. Retorna `null` quando a data é inválida ou ausente.
+ */
+function toUtcIsoString(time: string | null | undefined): string | null {
+  if (!time) return null;
+  const parsed = Date.parse(time);
+  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
+}
+
+/** Amostra de frequência cardíaca mais recente, com o horário do próprio registro. */
 function latestHeartRate(
   records: { samples: { time: string; beatsPerMinute: number }[] }[],
-): number | null {
-  let latest: { time: number; bpm: number } | null = null;
+): { beatsPerMinute: number; measuredAt: string | null } | null {
+  let latest: { time: number; bpm: number; rawTime: string } | null = null;
 
   for (const record of records) {
     for (const sample of record.samples) {
       const time = Date.parse(sample.time);
+      if (Number.isNaN(time)) continue;
       if (latest === null || time > latest.time) {
-        latest = { time, bpm: sample.beatsPerMinute };
+        latest = { time, bpm: sample.beatsPerMinute, rawTime: sample.time };
       }
     }
   }
 
-  return latest?.bpm ?? null;
+  if (latest === null) return null;
+  return { beatsPerMinute: latest.bpm, measuredAt: toUtcIsoString(latest.rawTime) };
 }
 
 // Assume que o Health Connect já foi inicializado por quem chamou.
@@ -131,9 +153,15 @@ async function readHealthConnect(): Promise<HealthSnapshot> {
     0,
   );
 
+  // `ascendingOrder: false` já devolve o registro mais recente primeiro.
+  const heartRate = latestHeartRate(heartRateResult.records);
+  const oxygenRecord = oxygenResult.records[0] ?? null;
+
   return {
-    heartRate: latestHeartRate(heartRateResult.records),
-    oxygenSaturation: oxygenResult.records[0]?.percentage ?? null,
+    heartRate: heartRate?.beatsPerMinute ?? null,
+    heartRateMeasuredAt: heartRate?.measuredAt ?? null,
+    oxygenSaturation: oxygenRecord?.percentage ?? null,
+    oxygenSaturationMeasuredAt: toUtcIsoString(oxygenRecord?.time),
     steps,
     source: 'Health Connect',
   };

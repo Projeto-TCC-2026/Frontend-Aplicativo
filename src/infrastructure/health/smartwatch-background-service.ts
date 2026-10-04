@@ -5,9 +5,9 @@ import { isRunningInExpoGo } from 'expo';
 
 import { loadNotifications } from '@/src/infrastructure/api/push-availability';
 import {
-  connectToHealthForBackground,
-  readHealthInBackground,
-  type HealthSnapshot,
+    connectToHealthForBackground,
+    readHealthInBackground,
+    type HealthSnapshot,
 } from './health-service';
 import { submitSmartwatchSnapshot } from './smartwatch-ingestion-service';
 
@@ -145,13 +145,28 @@ function isHealthSnapshot(value: unknown): value is HealthSnapshot {
   const candidate = value as Record<string, unknown>;
   const isNullableNumber = (field: unknown) =>
     field === null || (typeof field === 'number' && Number.isFinite(field));
+  // Snapshots salvos por versões anteriores não têm os horários de medição:
+  // `undefined` é aceito e normalizado para `null` em `normalizeSnapshot`.
+  const isOptionalIsoString = (field: unknown) =>
+    field === null || field === undefined || typeof field === 'string';
 
   return (
     isNullableNumber(candidate.heartRate) &&
     isNullableNumber(candidate.oxygenSaturation) &&
     isNullableNumber(candidate.steps) &&
+    isOptionalIsoString(candidate.heartRateMeasuredAt) &&
+    isOptionalIsoString(candidate.oxygenSaturationMeasuredAt) &&
     candidate.source === 'Health Connect'
   );
+}
+
+/** Garante os campos novos em snapshots salvos antes desta versão. */
+function normalizeSnapshot(snapshot: HealthSnapshot): HealthSnapshot {
+  return {
+    ...snapshot,
+    heartRateMeasuredAt: snapshot.heartRateMeasuredAt ?? null,
+    oxygenSaturationMeasuredAt: snapshot.oxygenSaturationMeasuredAt ?? null,
+  };
 }
 
 async function saveSnapshot(snapshot: HealthSnapshot): Promise<void> {
@@ -258,7 +273,7 @@ export async function getSmartwatchMonitoringState(): Promise<MonitoringState> {
       if (!isHealthSnapshot(parsed)) {
         throw new Error('Formato da leitura salva inválido.');
       }
-      snapshot = parsed;
+      snapshot = normalizeSnapshot(parsed);
     } catch (error) {
       console.error('Não foi possível ler a última coleta do smartwatch.', error);
       await SecureStore.deleteItemAsync(LAST_SNAPSHOT_KEY);

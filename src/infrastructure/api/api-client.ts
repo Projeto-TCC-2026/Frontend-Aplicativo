@@ -1,4 +1,4 @@
-import type { PaginatedAlerts } from '@/src/domain/alert';
+import type { AlertAnswer, AlertResponseResult, PaginatedAlerts } from '@/src/domain/alert';
 import type {
     AggregatedCheckinRequest,
     AggregatedCheckinResponse,
@@ -6,9 +6,9 @@ import type {
 } from '@/src/domain/checkin';
 import type { ApiResponse } from '@/src/shared/types/api';
 import { savePatientFullName, savePatientId } from './secure-token-store';
-import { emptyTokenStore, type TokenStore } from './token-store';
 import { restoreSession } from './session-bootstrap';
 import { setSessionStatus } from './session-state';
+import { emptyTokenStore, type TokenStore } from './token-store';
 
 /** Rota de registro de push token do paciente. */
 const DEVICES_PATH = '/api/mobile/devices';
@@ -170,6 +170,18 @@ export class ApiClient {
   async getRecentAlerts(page = 0, size = 20): Promise<PaginatedAlerts> {
     return this.get<ApiResponse<PaginatedAlerts>>(`/api/mobile/alerts?page=${page}&size=${size}`)
       .then(unwrapResponse);
+  }
+
+  /**
+   * Registra a resposta da paciente a um alerta grave.
+   * O 409 (resposta já registrada ou prazo vencido) chega como `ApiClientError`
+   * com a mensagem em português vinda do backend.
+   */
+  async respondToAlert(alertId: string, answer: AlertAnswer): Promise<AlertResponseResult> {
+    return this.post<ApiResponse<AlertResponseResult>>(
+      `/api/mobile/alerts/${encodeURIComponent(alertId)}/response`,
+      { answer },
+    ).then(unwrapResponse);
   }
 
   async registerPushToken(request: RegisterDeviceRequest): Promise<void> {

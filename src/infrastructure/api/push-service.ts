@@ -5,18 +5,68 @@ import { Platform } from 'react-native';
 import { createApiClient } from './api-config';
 import { isPushSupported, loadNotifications } from './push-availability';
 import {
-  clearRegisteredPushToken,
-  getRegisteredPushToken,
-  hasPushTokenChanged,
-  saveRegisteredPushToken,
+    clearRegisteredPushToken,
+    getRegisteredPushToken,
+    hasPushTokenChanged,
+    saveRegisteredPushToken,
 } from './push-token-store';
 
 export const ANDROID_ALERT_CHANNEL_ID = 'recupera-saude.clinical-alerts';
+
+/**
+ * Categoria do push de alerta grave, combinada com o backend
+ * (`categoryId: "severe-check"`). Sem `:` nem `-` no início/fim conforme a
+ * recomendação do `setNotificationCategoryAsync`.
+ */
+export const SEVERE_CHECK_CATEGORY_ID = 'severe-check';
+
+/** `data.type` do push de alerta grave. */
+export const SEVERE_CHECK_NOTIFICATION_TYPE = 'SEVERE_CHECK';
+
+/** Identificadores das ações, iguais aos valores aceitos no corpo da resposta. */
+export const SEVERE_CHECK_ACTION_OK = 'OK';
+export const SEVERE_CHECK_ACTION_NOT_OK = 'NOT_OK';
 
 /** Plataforma enviada ao Backend no registro do device. */
 export type PushPlatform = 'ANDROID';
 
 export { isPushSupported };
+
+/**
+ * Registra a categoria com os dois botões do alerta grave.
+ *
+ * `opensAppToForeground: true` (padrão da lib) é mantido de propósito: a
+ * documentação do `NotificationAction.options` diz que, com `false`, os
+ * listeners de `NotificationResponseReceived` não disparam quando o app foi
+ * encerrado (não apenas em background). Trazendo o app para o primeiro plano,
+ * a resposta é tratada pelo listener/`getLastNotificationResponse` de forma
+ * confiável.
+ *
+ * Idempotente: chamar de novo sobrescreve a categoria com o mesmo id.
+ */
+export async function ensureSevereCheckCategory(): Promise<void> {
+  const notifications = await loadNotifications();
+  if (!notifications) return;
+
+  try {
+    await notifications.setNotificationCategoryAsync(SEVERE_CHECK_CATEGORY_ID, [
+      {
+        identifier: SEVERE_CHECK_ACTION_OK,
+        buttonTitle: 'Estou bem',
+        options: { opensAppToForeground: true },
+      },
+      {
+        identifier: SEVERE_CHECK_ACTION_NOT_OK,
+        buttonTitle: 'Não estou bem',
+        options: { opensAppToForeground: true },
+      },
+    ]);
+  } catch (error) {
+    // Sem os botões a paciente ainda responde tocando na notificação e
+    // abrindo a tela de resposta, então a falha não pode quebrar o boot.
+    console.error('Não foi possível registrar a categoria do alerta grave.', error);
+  }
+}
 
 /**
  * Registra o handler de primeiro plano. Antes isso rodava no escopo do módulo,

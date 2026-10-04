@@ -1,22 +1,41 @@
-import type { HealthSnapshot } from './health-service';
 import { getPatientId } from '@/src/infrastructure/api/secure-token-store';
+import type { HealthSnapshot } from './health-service';
 
 type IngestionReading = {
   type: 'heartRate' | 'spo2' | 'steps';
   value: number;
   unit: 'bpm' | '%' | 'count';
+  /**
+   * Horário do próprio registro no Health Connect, em ISO 8601 UTC com "Z".
+   * Ausente para passos (valor agregado do dia, sem instante único) e quando o
+   * Health Connect não informou um horário válido.
+   */
+  measuredAt?: string;
 };
 
 export async function submitSmartwatchSnapshot(snapshot: HealthSnapshot): Promise<void> {
   const readings: IngestionReading[] = [];
 
   if (snapshot.heartRate !== null) {
-    readings.push({ type: 'heartRate', value: snapshot.heartRate, unit: 'bpm' });
+    readings.push({
+      type: 'heartRate',
+      value: snapshot.heartRate,
+      unit: 'bpm',
+      ...(snapshot.heartRateMeasuredAt ? { measuredAt: snapshot.heartRateMeasuredAt } : {}),
+    });
   }
   if (snapshot.oxygenSaturation !== null) {
-    readings.push({ type: 'spo2', value: snapshot.oxygenSaturation, unit: '%' });
+    readings.push({
+      type: 'spo2',
+      value: snapshot.oxygenSaturation,
+      unit: '%',
+      ...(snapshot.oxygenSaturationMeasuredAt
+        ? { measuredAt: snapshot.oxygenSaturationMeasuredAt }
+        : {}),
+    });
   }
   if (snapshot.steps !== null) {
+    // Passos é um total agregado do dia: não tem horário de medição único.
     readings.push({ type: 'steps', value: snapshot.steps, unit: 'count' });
   }
   if (readings.length === 0) return;
