@@ -18,7 +18,7 @@ function MenuItem({
   showDivider = true,
 }: {
   label: string;
-  description: string;
+  description?: string;
   onPress: () => void;
   showDivider?: boolean;
 }) {
@@ -27,14 +27,11 @@ function MenuItem({
       <Pressable
         accessibilityLabel={label}
         accessibilityRole="button"
-        className="py-3 active:opacity-60"
+        className="py-5 active:opacity-60"
         onPress={onPress}
       >
-        <Text className="font-body text-[15px] font-semibold text-neutral-900 dark:text-theme-dark-text-primary">
+        <Text className="font-body text-[17px] font-semibold text-neutral-900 dark:text-theme-dark-text-primary">
           {label}
-        </Text>
-        <Text className="mt-0.5 font-body text-[13px] text-brand-dark dark:text-theme-dark-action">
-          {description}
         </Text>
       </Pressable>
       {showDivider && <View className="h-px bg-neutral-150 dark:bg-theme-dark-border" />}
@@ -67,17 +64,30 @@ export default function Settings() {
 
   // Campos de edição de conta
   const [name, setName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [gender, setGender] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [zipCode, setZipCode] = useState('');
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [profileFetching, setProfileFetching] = useState(false);
+
+  async function openEditAccount() {
+    setProfileFetching(true);
+    setProfileError(null);
+    try {
+      const profile = await createApiClient().getProfile();
+      setName(profile.fullName ?? '');
+      setEmail(profile.email ?? '');
+      setPhone(profile.phone ?? '');
+    } catch (err) {
+      console.log('[editar conta] erro:', err);
+      setName('');
+      setEmail('');
+      setPhone('');
+    } finally {
+      setProfileFetching(false);
+    }
+    setSection('editAccount');
+  }
 
   // Campos de alteração de senha
   const [currentPassword, setCurrentPassword] = useState('');
@@ -125,15 +135,8 @@ export default function Settings() {
     try {
       await createApiClient().updateProfile({
         fullName: name.trim(),
-        birthDate: birthDate.trim() || undefined,
-        gender: gender.trim() || undefined,
+        email: email.trim() || undefined,
         phone: phone.trim() || undefined,
-        address: address.trim() || undefined,
-        city: city.trim() || undefined,
-        state: state.trim() || undefined,
-        zipCode: zipCode.trim() || undefined,
-        weight: weight ? parseFloat(weight) : undefined,
-        height: height ? parseFloat(height) : undefined,
       });
       setSection('main');
     } catch (err: unknown) {
@@ -171,16 +174,12 @@ export default function Settings() {
                 onChangeText={setName}
               />
               <TextField
-                label="Data de nascimento"
-                placeholder="AAAA-MM-DD"
-                value={birthDate}
-                onChangeText={setBirthDate}
-              />
-              <TextField
-                label="Gênero"
-                placeholder="Ex: Masculino, Feminino"
-                value={gender}
-                onChangeText={setGender}
+                autoCapitalize="none"
+                label="E-mail"
+                placeholder="seu@email.com"
+                type="email"
+                value={email}
+                onChangeText={setEmail}
               />
               <TextField
                 label="Telefone"
@@ -189,58 +188,6 @@ export default function Settings() {
                 value={phone}
                 onChangeText={setPhone}
               />
-              <TextField
-                label="Endereço"
-                placeholder="Rua, número, complemento"
-                value={address}
-                onChangeText={setAddress}
-              />
-              <TextField
-                label="Cidade"
-                placeholder="Sua cidade"
-                value={city}
-                onChangeText={setCity}
-              />
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <TextField
-                    autoCapitalize="characters"
-                    label="Estado (UF)"
-                    placeholder="SP"
-                    value={state}
-                    onChangeText={(v) => setState(v.toUpperCase().slice(0, 2))}
-                  />
-                </View>
-                <View className="flex-1">
-                  <TextField
-                    label="CEP"
-                    placeholder="00000-000"
-                    type="tel"
-                    value={zipCode}
-                    onChangeText={setZipCode}
-                  />
-                </View>
-              </View>
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <TextField
-                    label="Peso (kg)"
-                    placeholder="70.0"
-                    type="number"
-                    value={weight}
-                    onChangeText={setWeight}
-                  />
-                </View>
-                <View className="flex-1">
-                  <TextField
-                    label="Altura (m)"
-                    placeholder="1.70"
-                    type="number"
-                    value={height}
-                    onChangeText={setHeight}
-                  />
-                </View>
-              </View>
               {profileError ? (
                 <Text className="font-body text-sm text-semantic-critical">{profileError}</Text>
               ) : null}
@@ -465,9 +412,8 @@ export default function Settings() {
       {/* Seção de conta */}
       <Card title="Conta">
         <MenuItem
-          description="Edite as informações da sua conta."
           label="Editar conta"
-          onPress={() => setSection('editAccount')}
+          onPress={() => void openEditAccount()}
         />
         <MenuItem
           description="Altere a senha de acesso à sua conta."

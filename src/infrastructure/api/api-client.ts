@@ -1,8 +1,8 @@
 import type { AlertAnswer, AlertResponseResult, PaginatedAlerts } from '@/src/domain/alert';
 import type {
-    AggregatedCheckinRequest,
-    AggregatedCheckinResponse,
-    CheckinForm,
+  AggregatedCheckinRequest,
+  AggregatedCheckinResponse,
+  CheckinForm,
 } from '@/src/domain/checkin';
 import type { ApiResponse } from '@/src/shared/types/api';
 import { savePatientFullName, savePatientId } from './secure-token-store';
@@ -196,6 +196,10 @@ export class ApiClient {
     await this.patch<ApiResponse<null>>('/auth/change-password', { currentPassword, newPassword, confirmNewPassword });
   }
 
+  async getProfile(): Promise<PatientProfile> {
+    return this.get<ApiResponse<PatientProfile>>('/auth/me').then(unwrapResponse);
+  }
+
   async updateProfile(data: UpdateProfileRequest): Promise<void> {
     await this.patch<ApiResponse<null>>('/auth/profile/patient', data);
   }
@@ -246,17 +250,16 @@ export type RegisterDeviceRequest = {
   deviceId?: string;
 };
 
+export type PatientProfile = {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+};
+
 export type UpdateProfileRequest = {
   fullName?: string;
-  birthDate?: string;
-  gender?: string;
+  email?: string;
   phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  weight?: number;
-  height?: number;
 };
 
 export type PatientAuthResponse = {
