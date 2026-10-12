@@ -9,8 +9,8 @@ import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Login() {
-  const [email, setEmail] = useState('patient1@tcc.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState(__DEV__ ? 'patient1@tcc.com' : '');
+  const [password, setPassword] = useState(__DEV__ ? '123456' : '');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
