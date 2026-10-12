@@ -133,8 +133,8 @@ export default function Smartwatch() {
       : 'Coleta desligada';
 
   return (
-    <Screen className="bg-neutral-100 p-8 dark:bg-theme-dark-background">
-      <ScrollView contentContainerClassName="flex-grow gap-5">
+    <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
+      <ScrollView contentContainerClassName="flex-grow gap-5 p-8">
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Meu smartwatch</Text>
           <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhamento 24 horas com dados do seu smartwatch</Text>
