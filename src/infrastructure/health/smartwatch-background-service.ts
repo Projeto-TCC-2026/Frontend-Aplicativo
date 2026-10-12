@@ -15,15 +15,19 @@ export const SMARTWATCH_TASK_NAME = 'recupera-saude-smartwatch-hourly';
 
 const COLLECTION_ENABLED_KEY = 'smartwatch_collection_enabled';
 const LAST_SNAPSHOT_KEY = 'smartwatch_last_health_snapshot';
+const COLLECTION_HISTORY_KEY = 'smartwatch_collection_history';
+const NEXT_COLLECTION_AT_KEY = 'smartwatch_next_collection_at';
 const SMARTWATCH_CHANNEL_ID = 'recupera-saude.smartwatch-collection';
 export const COLLECTION_INTERVAL_MINUTES = 60;
+const MAX_COLLECTION_HISTORY = 10;
+const COLLECTION_RETRY_DELAY_MS = 60_000;
 const COLLECTION_NOTIFICATION_TYPE = 'SMARTWATCH_DATA_COLLECTED';
 const HEALTH_CONNECT_PACKAGE = 'com.google.android.apps.healthdata';
 const LAST_COLLECTED_AT_KEY = 'smartwatch_last_collected_at';
+const COLLECTION_INTERVAL_MS = COLLECTION_INTERVAL_MINUTES * 60 * 1000;
 
-type BackgroundTaskModules = {
-  backgroundTask: typeof import('expo-background-task');
-  taskManager: typeof import('expo-task-manager');
+type BackgroundServiceModule = {
+  service: typeof import('react-native-background-actions').default;
 };
 
 type HealthConnectModule = typeof import('react-native-health-connect');
@@ -32,15 +36,26 @@ type MonitoringState = {
   enabled: boolean;
   snapshot: HealthSnapshot | null;
   lastCollectedAt: string | null;
+  collections: SmartwatchCollection[];
 };
 
-function getBackgroundTaskModules(): BackgroundTaskModules {
+export type SmartwatchCollection = {
+  collectedAt: string;
+  snapshot: HealthSnapshot;
+};
+
+let serviceGeneration = 0;
+let cancelScheduledWait: (() => void) | null = null;
+
+function getBackgroundServiceModule(): BackgroundServiceModule {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const backgroundServiceModule = require('react-native-background-actions') as {
+    default: typeof import('react-native-background-actions').default;
+  };
+
   return {
-    // Load native task modules only in builds that include them.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    backgroundTask: require('expo-background-task') as typeof import('expo-background-task'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    taskManager: require('expo-task-manager') as typeof import('expo-task-manager'),
+    // Load the native service only in builds that include it.
+    service: backgroundServiceModule.default,
   };
 }
 
@@ -145,34 +160,82 @@ function isHealthSnapshot(value: unknown): value is HealthSnapshot {
   const candidate = value as Record<string, unknown>;
   const isNullableNumber = (field: unknown) =>
     field === null || (typeof field === 'number' && Number.isFinite(field));
-  // Snapshots salvos por versões anteriores não têm os horários de medição:
-  // `undefined` é aceito e normalizado para `null` em `normalizeSnapshot`.
+  const isOptionalNullableNumber = (field: unknown) =>
+    field === undefined || isNullableNumber(field);
   const isOptionalIsoString = (field: unknown) =>
     field === null || field === undefined || typeof field === 'string';
 
   return (
     isNullableNumber(candidate.heartRate) &&
     isNullableNumber(candidate.oxygenSaturation) &&
-    isNullableNumber(candidate.steps) &&
+    isOptionalNullableNumber(candidate.bodyTemperature) &&
+    (candidate.heartRateStatus === undefined ||
+      candidate.heartRateStatus === 'coletado' ||
+      candidate.heartRateStatus === 'vazio') &&
+    (candidate.oxygenSaturationStatus === undefined ||
+      candidate.oxygenSaturationStatus === 'coletado' ||
+      candidate.oxygenSaturationStatus === 'vazio') &&
+    (candidate.bodyTemperatureStatus === undefined ||
+      candidate.bodyTemperatureStatus === 'coletado' ||
+      candidate.bodyTemperatureStatus === 'vazio') &&
     isOptionalIsoString(candidate.heartRateMeasuredAt) &&
     isOptionalIsoString(candidate.oxygenSaturationMeasuredAt) &&
+    isOptionalIsoString(candidate.bodyTemperatureMeasuredAt) &&
     candidate.source === 'Health Connect'
   );
 }
 
-/** Garante os campos novos em snapshots salvos antes desta versão. */
+/** Descarta propriedades antigas e normaliza snapshots salvos por versões anteriores. */
 function normalizeSnapshot(snapshot: HealthSnapshot): HealthSnapshot {
   return {
-    ...snapshot,
+    heartRate: snapshot.heartRate,
+    heartRateStatus: snapshot.heartRate === null ? 'vazio' : 'coletado',
     heartRateMeasuredAt: snapshot.heartRateMeasuredAt ?? null,
+    oxygenSaturation: snapshot.oxygenSaturation,
+    oxygenSaturationStatus: snapshot.oxygenSaturation === null ? 'vazio' : 'coletado',
     oxygenSaturationMeasuredAt: snapshot.oxygenSaturationMeasuredAt ?? null,
+    bodyTemperature: snapshot.bodyTemperature ?? null,
+    bodyTemperatureStatus: snapshot.bodyTemperature == null ? 'vazio' : 'coletado',
+    bodyTemperatureMeasuredAt: snapshot.bodyTemperatureMeasuredAt ?? null,
+    source: 'Health Connect',
   };
 }
 
 async function saveSnapshot(snapshot: HealthSnapshot): Promise<void> {
+  const collectedAt = new Date().toISOString();
+  const savedHistory = await SecureStore.getItemAsync(COLLECTION_HISTORY_KEY);
+  let collections: SmartwatchCollection[] = [];
+  if (savedHistory) {
+    try {
+      const parsed: unknown = JSON.parse(savedHistory);
+      if (!Array.isArray(parsed)) throw new Error('Formato do histórico inválido.');
+      collections = parsed
+        .filter(
+          (entry): entry is SmartwatchCollection =>
+            typeof entry === 'object' &&
+            entry !== null &&
+            'collectedAt' in entry &&
+            typeof entry.collectedAt === 'string' &&
+            'snapshot' in entry &&
+            isHealthSnapshot(entry.snapshot),
+        )
+        .map(entry => ({
+          collectedAt: entry.collectedAt,
+          snapshot: normalizeSnapshot(entry.snapshot),
+        }));
+    } catch (error) {
+      console.error('Não foi possível ler o histórico de coletas do smartwatch.', error);
+    }
+  }
+  const collection = { collectedAt, snapshot: normalizeSnapshot(snapshot) };
+
   await Promise.all([
-    SecureStore.setItemAsync(LAST_SNAPSHOT_KEY, JSON.stringify(snapshot)),
-    SecureStore.setItemAsync(LAST_COLLECTED_AT_KEY, new Date().toISOString()),
+    SecureStore.setItemAsync(LAST_SNAPSHOT_KEY, JSON.stringify(collection.snapshot)),
+    SecureStore.setItemAsync(LAST_COLLECTED_AT_KEY, collectedAt),
+    SecureStore.setItemAsync(
+      COLLECTION_HISTORY_KEY,
+      JSON.stringify([collection, ...collections].slice(0, MAX_COLLECTION_HISTORY)),
+    ),
   ]);
 }
 
@@ -187,12 +250,12 @@ function formatSnapshotForDevelopment(snapshot: HealthSnapshot): string {
     snapshot.oxygenSaturation === null
       ? 'sem registro'
       : `${snapshot.oxygenSaturation}%`;
-  const steps =
-    snapshot.steps === null
+  const bodyTemperature =
+    snapshot.bodyTemperature === null
       ? 'sem registro'
-      : snapshot.steps.toLocaleString('pt-BR');
+      : `${snapshot.bodyTemperature} °C`;
 
-  return `FC: ${heartRate} · SpO₂: ${oxygenSaturation} · Passos: ${steps}`;
+  return `FC: ${heartRate} · SpO₂: ${oxygenSaturation} · Temperatura: ${bodyTemperature}`;
 }
 
 async function notifyDataCollected(snapshot: HealthSnapshot): Promise<void> {
@@ -240,30 +303,99 @@ async function collectAutomatically(): Promise<void> {
   await notifyDataCollected(snapshot);
 }
 
-if (Platform.OS === 'android' && !isRunningInExpoGo()) {
-  const { backgroundTask, taskManager } = getBackgroundTaskModules();
+function wait(milliseconds: number): Promise<void> {
+  return new Promise(resolve => {
+    let timer: ReturnType<typeof setTimeout>;
+    const cancel = () => {
+      clearTimeout(timer);
+      if (cancelScheduledWait === cancel) cancelScheduledWait = null;
+      resolve();
+    };
+    timer = setTimeout(() => {
+      if (cancelScheduledWait === cancel) cancelScheduledWait = null;
+      resolve();
+    }, milliseconds);
+    cancelScheduledWait = cancel;
+  });
+}
 
-  taskManager.defineTask(SMARTWATCH_TASK_NAME, async ({ error }) => {
-    if (error) {
-      console.error('Falha ao iniciar a tarefa de coleta do smartwatch.', error);
-      return backgroundTask.BackgroundTaskResult.Failed;
+async function runCollectionLoop(
+  generation: number,
+  initialDelayMs: number,
+): Promise<void> {
+  let nextCollectionAt = Date.now() + initialDelayMs;
+
+  while (generation === serviceGeneration) {
+    let enabled: boolean;
+    try {
+      enabled = await getCollectionEnabled();
+    } catch (error) {
+      console.error('Não foi possível verificar se a coleta do smartwatch está ativa.', error);
+      await wait(COLLECTION_RETRY_DELAY_MS);
+      continue;
+    }
+    if (!enabled) return;
+
+    const delayMs = Math.max(0, nextCollectionAt - Date.now());
+    if (delayMs > 0) await wait(delayMs);
+    if (generation !== serviceGeneration) return;
+    try {
+      if (!(await getCollectionEnabled())) return;
+    } catch (error) {
+      console.error('Não foi possível verificar se a coleta do smartwatch está ativa.', error);
+      await wait(COLLECTION_RETRY_DELAY_MS);
+      continue;
     }
 
     try {
       await collectAutomatically();
-      return backgroundTask.BackgroundTaskResult.Success;
-    } catch (taskError) {
-      console.error('Falha na coleta automática do smartwatch.', taskError);
-      return backgroundTask.BackgroundTaskResult.Failed;
+    } catch (error) {
+      console.error('Falha na coleta automática do smartwatch.', error);
     }
-  });
+
+    if (generation !== serviceGeneration) return;
+
+    const now = Date.now();
+    nextCollectionAt += COLLECTION_INTERVAL_MS;
+    if (nextCollectionAt <= now) {
+      nextCollectionAt = now + COLLECTION_INTERVAL_MS;
+    }
+    try {
+      await SecureStore.setItemAsync(NEXT_COLLECTION_AT_KEY, String(nextCollectionAt));
+    } catch (error) {
+      console.error('Não foi possível salvar o horário da próxima coleta.', error);
+    }
+  }
+}
+
+async function startForegroundService(initialDelayMs: number): Promise<void> {
+  const { service } = getBackgroundServiceModule();
+  if (service.isRunning()) return;
+
+  const generation = ++serviceGeneration;
+  const androidApiLevel =
+    typeof Platform.Version === 'number'
+      ? Platform.Version
+      : Number.parseInt(Platform.Version, 10);
+  await service.start(
+    () => runCollectionLoop(generation, initialDelayMs),
+    {
+      taskName: SMARTWATCH_TASK_NAME,
+      taskTitle: 'Recupera Saúde',
+      taskDesc: 'Monitoramento ativo; coletas aproximadamente a cada hora.',
+      taskIcon: { name: 'ic_launcher', type: 'mipmap' },
+      color: '#2563EB',
+      foregroundServiceType: androidApiLevel >= 34 ? ['health'] : undefined,
+    },
+  );
 }
 
 export async function getSmartwatchMonitoringState(): Promise<MonitoringState> {
-  const [enabled, savedSnapshot, lastCollectedAt] = await Promise.all([
+  const [enabled, savedSnapshot, lastCollectedAt, savedHistory] = await Promise.all([
     getCollectionEnabled(),
     SecureStore.getItemAsync(LAST_SNAPSHOT_KEY),
     SecureStore.getItemAsync(LAST_COLLECTED_AT_KEY),
+    SecureStore.getItemAsync(COLLECTION_HISTORY_KEY),
   ]);
 
   let snapshot: HealthSnapshot | null = null;
@@ -280,7 +412,36 @@ export async function getSmartwatchMonitoringState(): Promise<MonitoringState> {
     }
   }
 
-  return { enabled, snapshot, lastCollectedAt };
+  let collections: SmartwatchCollection[] = [];
+  if (savedHistory) {
+    try {
+      const parsed: unknown = JSON.parse(savedHistory);
+      if (!Array.isArray(parsed)) throw new Error('Formato do histórico inválido.');
+      collections = parsed
+        .filter(
+          (entry): entry is SmartwatchCollection =>
+            typeof entry === 'object' &&
+            entry !== null &&
+            'collectedAt' in entry &&
+            typeof entry.collectedAt === 'string' &&
+            'snapshot' in entry &&
+            isHealthSnapshot(entry.snapshot),
+        )
+        .map(entry => ({
+          collectedAt: entry.collectedAt,
+          snapshot: normalizeSnapshot(entry.snapshot),
+        }))
+        .slice(0, MAX_COLLECTION_HISTORY);
+    } catch (error) {
+      console.error('Não foi possível ler o histórico de coletas do smartwatch.', error);
+      await SecureStore.deleteItemAsync(COLLECTION_HISTORY_KEY);
+    }
+  }
+  if (collections.length === 0 && snapshot && lastCollectedAt) {
+    collections = [{ collectedAt: lastCollectedAt, snapshot }];
+  }
+
+  return { enabled, snapshot, lastCollectedAt, collections };
 }
 
 export async function enableSmartwatchMonitoring(): Promise<HealthSnapshot> {
@@ -292,19 +453,6 @@ export async function enableSmartwatchMonitoring(): Promise<HealthSnapshot> {
 
   // Health Connect disponível? (antes de qualquer outra coisa)
   await assertHealthConnectAvailable();
-
-  const { backgroundTask, taskManager } = getBackgroundTaskModules();
-
-  if (!(await taskManager.isAvailableAsync())) {
-    throw new Error('A coleta em segundo plano não está disponível neste dispositivo.');
-  }
-
-  if (
-    (await backgroundTask.getStatusAsync()) !==
-    backgroundTask.BackgroundTaskStatus.Available
-  ) {
-    throw new Error('O sistema não permite executar tarefas em segundo plano.');
-  }
 
   const notifications = await loadNotifications();
   if (!notifications) {
@@ -326,35 +474,56 @@ export async function enableSmartwatchMonitoring(): Promise<HealthSnapshot> {
 
   await saveSnapshot(snapshot);
   await submitSmartwatchSnapshot(snapshot);
+  const nextCollectionAt = Date.now() + COLLECTION_INTERVAL_MS;
+  await SecureStore.setItemAsync(NEXT_COLLECTION_AT_KEY, String(nextCollectionAt));
   await SecureStore.setItemAsync(COLLECTION_ENABLED_KEY, 'true');
 
   try {
-    await backgroundTask.registerTaskAsync(SMARTWATCH_TASK_NAME, {
-      minimumInterval: COLLECTION_INTERVAL_MINUTES,
-    });
     await notifyDataCollected(snapshot);
+    await startForegroundService(Math.max(0, nextCollectionAt - Date.now()));
     return snapshot;
   } catch (error) {
     await SecureStore.setItemAsync(COLLECTION_ENABLED_KEY, 'false');
+    await SecureStore.deleteItemAsync(NEXT_COLLECTION_AT_KEY);
+    serviceGeneration += 1;
+    cancelScheduledWait?.();
     try {
-      await backgroundTask.unregisterTaskAsync(SMARTWATCH_TASK_NAME);
-    } catch (unregisterError) {
-      console.error('Não foi possível cancelar a tarefa após falha ao habilitar.', unregisterError);
+      const { service } = getBackgroundServiceModule();
+      if (service.isRunning()) await service.stop();
+    } catch (stopError) {
+      console.error('Não foi possível parar o serviço após falha ao habilitar.', stopError);
     }
     throw error;
   }
 }
 
+export async function resumeSmartwatchMonitoring(): Promise<void> {
+  if (Platform.OS !== 'android' || isRunningInExpoGo()) return;
+  if (!(await getCollectionEnabled())) return;
+
+  const scheduledAt = Number.parseInt(
+    (await SecureStore.getItemAsync(NEXT_COLLECTION_AT_KEY)) ?? '',
+    10,
+  );
+  const initialDelayMs = Number.isFinite(scheduledAt)
+    ? Math.max(0, scheduledAt - Date.now())
+    : 0;
+
+  await startForegroundService(initialDelayMs);
+}
+
 export async function disableSmartwatchMonitoring(): Promise<void> {
   await SecureStore.setItemAsync(COLLECTION_ENABLED_KEY, 'false');
+  await SecureStore.deleteItemAsync(NEXT_COLLECTION_AT_KEY);
 
   if (Platform.OS === 'android' && !isRunningInExpoGo()) {
-    const { backgroundTask } = getBackgroundTaskModules();
+    serviceGeneration += 1;
+    cancelScheduledWait?.();
     try {
-      await backgroundTask.unregisterTaskAsync(SMARTWATCH_TASK_NAME);
+      const { service } = getBackgroundServiceModule();
+      if (service.isRunning()) await service.stop();
     } catch (error) {
-      // Se a task já não estava registrada, não há nada a cancelar.
-      console.error('Não foi possível cancelar a tarefa de coleta.', error);
+      console.error('Não foi possível parar o serviço de coleta.', error);
     }
   }
 }

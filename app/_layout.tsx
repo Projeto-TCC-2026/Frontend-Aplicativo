@@ -55,12 +55,6 @@ import type { EventSubscription } from 'expo-modules-core';
 
 import '@/global.css';
 
-if (Platform.OS === 'android' && !isRunningInExpoGo()) {
-  // Define a tarefa de coleta antes que o worker em segundo plano possa iniciar o app.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('@/src/infrastructure/health/smartwatch-background-service');
-}
-
 void SplashScreen.preventAutoHideAsync();
 
 /** Interação com uma notificação, normalizada para a fila. */
@@ -110,6 +104,39 @@ export default function RootLayout() {
     void restoreStoredSession();
     return unsubscribe;
   }, [restoreStoredSession]);
+
+  useEffect(() => {
+    if (
+      sessionStatus !== 'authenticated' ||
+      Platform.OS !== 'android' ||
+      isRunningInExpoGo()
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    void import('@/src/infrastructure/health/smartwatch-background-service')
+      .then(async ({ resumeSmartwatchMonitoring }) => {
+        if (cancelled) return;
+        try {
+          await resumeSmartwatchMonitoring();
+        } catch (error) {
+          console.error('Não foi possível retomar o monitoramento do smartwatch.', error);
+          notify.error(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível retomar o monitoramento do smartwatch.',
+          );
+        }
+      })
+      .catch(error => {
+        console.error('Não foi possível carregar o serviço do smartwatch.', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionStatus]);
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colorScheme === 'dark' ? colors.darkBackground : colors.neutral100);

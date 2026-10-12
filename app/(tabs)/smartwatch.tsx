@@ -4,6 +4,8 @@ import {
   disableSmartwatchMonitoring,
   enableSmartwatchMonitoring,
   getSmartwatchMonitoringState,
+  openBatteryOptimizationSettings,
+  type SmartwatchCollection,
 } from '@/src/infrastructure/health/smartwatch-background-service';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -28,11 +30,13 @@ const GRAY = '#6B7280';
 export default function Smartwatch() {
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null);
   const [lastCollectedAt, setLastCollectedAt] = useState<string | null>(null);
+  const [collections, setCollections] = useState<SmartwatchCollection[]>([]);
   const [enabled, setEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState<SmartwatchCollection | null>(null);
 
   // Evita que uma releitura do estado sobrescreva a UI no meio de ativar/desativar.
   const updatingRef = useRef(false);
@@ -45,6 +49,7 @@ export default function Smartwatch() {
       setEnabled(state.enabled);
       setSnapshot(state.snapshot);
       setLastCollectedAt(state.lastCollectedAt);
+      setCollections(state.collections);
     } catch (stateError) {
       setError(
         stateError instanceof Error
@@ -60,6 +65,10 @@ export default function Smartwatch() {
   useFocusEffect(
     useCallback(() => {
       void refreshState();
+      const refreshInterval = setInterval(() => {
+        void refreshState();
+      }, 30_000);
+      return () => clearInterval(refreshInterval);
     }, [refreshState]),
   );
 
@@ -98,6 +107,18 @@ export default function Smartwatch() {
   const handleConfirmStop = () => {
     setConfirmVisible(false);
     void runUpdate(disableSmartwatchMonitoring, 'Não foi possível desativar a coleta do smartwatch.');
+  };
+
+  const handleOpenBatterySettings = async () => {
+    try {
+      await openBatteryOptimizationSettings();
+    } catch (settingsError) {
+      setError(
+        settingsError instanceof Error
+          ? settingsError.message
+          : 'Não foi possível abrir as configurações de bateria.',
+      );
+    }
   };
 
   const isAndroid = Platform.OS === 'android';
@@ -159,15 +180,71 @@ export default function Smartwatch() {
             >
               {snapshot ? (
                 <View className="gap-3">
-                  <HealthValue label="Frequência cardíaca" value={snapshot.heartRate != null ? `${snapshot.heartRate} bpm` : '-'} />
-                  <HealthValue label="Oxigenação no sangue" value={snapshot.oxygenSaturation != null ? `${snapshot.oxygenSaturation}%` : '-'} />
-                  <HealthValue label="Passos hoje" value={snapshot.steps != null ? snapshot.steps.toLocaleString('pt-BR') : '-'} />
+                  <HealthValue label="Frequência cardíaca" value={formatMetric(snapshot.heartRate, 'bpm')} status={snapshot.heartRateStatus} />
+                  <HealthValue label="Oxigenação no sangue" value={formatMetric(snapshot.oxygenSaturation, '%')} status={snapshot.oxygenSaturationStatus} />
+                  <HealthValue label="Temperatura corporal" value={formatMetric(snapshot.bodyTemperature, '°C')} status={snapshot.bodyTemperatureStatus} />
                 </View>
               ) : (
                 <Text className="font-body text-neutral-700 dark:text-theme-dark-text-secondary">
                   Ative a coleta para ver seus dados aqui.
                 </Text>
               )}
+            </Card>
+          </View>
+        )}
+        {isAndroid && (enabled || collections.length > 0) && (
+          <View>
+            <Card
+              title="Últimas 10 coletas"
+              subtitle={
+                enabled
+                  ? 'Toque no ícone de olho para consultar os dados de cada coleta.'
+                  : 'Histórico local das coletas anteriores.'
+              }
+            >
+              {collections.length > 0 ? (
+                <View>
+                  {collections.map((collection, index) => {
+                    const timeLabel = formatCollectedAt(collection.collectedAt) ?? 'Horário indisponível';
+                    return (
+                      <View
+                        key={`${collection.collectedAt}-${index}`}
+                        className="flex-row items-center justify-between border-b border-neutral-150 py-3 last:border-b-0 dark:border-theme-dark-border"
+                      >
+                        <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">
+                          {timeLabel}
+                        </Text>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Ver detalhes da coleta de ${timeLabel}`}
+                          onPress={() => setSelectedCollection(collection)}
+                          className="rounded-full p-2 active:opacity-70"
+                        >
+                          <MaterialCommunityIcons
+                            name="eye-outline"
+                            size={22}
+                            color={GRAY}
+                          />
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text className="font-body text-neutral-700 dark:text-theme-dark-text-secondary">
+                  Ainda não há coletas registradas.
+                </Text>
+              )}
+              {enabled ? (
+                <View className="mt-3 gap-3">
+                  <Text className="font-body text-[13px] leading-5 text-neutral-600 dark:text-theme-dark-text-secondary">
+                    O Android pode adiar tarefas em economia de bateria. Para reduzir atrasos, configure o app como sem restrições nas configurações do aparelho.
+                  </Text>
+                  <Button fullWidth variant="secondary" onPress={() => void handleOpenBatterySettings()}>
+                    Configurar bateria
+                  </Button>
+                </View>
+              ) : null}
             </Card>
           </View>
         )}
@@ -179,7 +256,7 @@ export default function Smartwatch() {
                   1. Toque em <Text className="font-bold">Ligar</Text> e permita o acesso aos dados de saúde e notificações;
                 </Text>
                 <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
-                  2. O app lê frequência cardíaca, oxigenação do sangue e passos a cada hora, em segundo plano. Mantenha o relógio sincronizado com o app de saúde do celular;
+                  2. O app lê frequência cardíaca, oxigenação do sangue e temperatura corporal aproximadamente a cada hora, em segundo plano. Mantenha o relógio sincronizado com o app de saúde do celular;
                 </Text>
                 <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
                   3. Os últimos dados coletados aparecem aqui e você pode desligar quando quiser.
@@ -217,6 +294,49 @@ export default function Smartwatch() {
                   </Text>
                 </Pressable>
               </View>
+            </Card>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        transparent
+        statusBarTranslucent
+        animationType="fade"
+        visible={selectedCollection !== null}
+        onRequestClose={() => setSelectedCollection(null)}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50 p-8">
+          <View className="w-full max-w-[420px]">
+            <Card
+              title="Detalhes da coleta"
+              subtitle={
+                selectedCollection
+                  ? formatCollectedAt(selectedCollection.collectedAt) ?? 'Horário indisponível'
+                  : undefined
+              }
+            >
+              {selectedCollection ? (
+                <View className="gap-3">
+                  <HealthValue
+                    label="Oxigenação do sangue (SpO₂)"
+                    value={formatMetric(selectedCollection.snapshot.oxygenSaturation, '%')}
+                    status={selectedCollection.snapshot.oxygenSaturationStatus}
+                  />
+                  <HealthValue
+                    label="Temperatura corporal"
+                    value={formatMetric(selectedCollection.snapshot.bodyTemperature, '°C')}
+                    status={selectedCollection.snapshot.bodyTemperatureStatus}
+                  />
+                  <HealthValue
+                    label="Frequência cardíaca"
+                    value={formatMetric(selectedCollection.snapshot.heartRate, 'bpm')}
+                    status={selectedCollection.snapshot.heartRateStatus}
+                  />
+                  <Button fullWidth variant="secondary" onPress={() => setSelectedCollection(null)}>
+                    Fechar
+                  </Button>
+                </View>
+              ) : null}
             </Card>
           </View>
         </View>
@@ -312,11 +432,30 @@ function formatCollectedAt(iso: string | null): string | null {
   });
 }
 
-function HealthValue({ label, value }: { label: string; value: string }) {
+function formatMetric(value: number | null, unit: string): string {
+  return value === null ? 'Vazio' : `${value} ${unit}`;
+}
+
+function HealthValue({
+  label,
+  value,
+  status,
+}: {
+  label: string;
+  value: string;
+  status?: 'coletado' | 'vazio';
+}) {
   return (
     <View className="flex-row items-center justify-between border-b border-neutral-150 pb-3 dark:border-theme-dark-border">
       <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">{label}</Text>
-      <Text className="font-data text-[15px] font-bold text-neutral-900 dark:text-theme-dark-text-primary">{value}</Text>
+      <View className="items-end">
+        <Text className="font-data text-[15px] font-bold text-neutral-900 dark:text-theme-dark-text-primary">{value}</Text>
+        {status ? (
+          <Text className="font-body text-[12px] text-neutral-500 dark:text-theme-dark-text-tertiary">
+            Status: {status}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }

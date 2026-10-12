@@ -13,9 +13,12 @@
     "android": {
       "permissions": [
         "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_STEPS",
         "android.permission.health.READ_OXYGEN_SATURATION",
-        "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_HEALTH",
+        "android.permission.WAKE_LOCK"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
@@ -60,7 +63,7 @@
         }
       ],
       "expo-asset",
-      "expo-background-task"
+      "./plugins/with-health-foreground-service"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -2,13 +2,12 @@ import { getPatientId } from '@/src/infrastructure/api/secure-token-store';
 import type { HealthSnapshot } from './health-service';
 
 type IngestionReading = {
-  type: 'heartRate' | 'spo2' | 'steps';
+  type: 'heartRate' | 'spo2' | 'temperature';
   value: number;
-  unit: 'bpm' | '%' | 'count';
+  unit: 'bpm' | '%' | 'celsius';
   /**
    * Horário do próprio registro no Health Connect, em ISO 8601 UTC com "Z".
-   * Ausente para passos (valor agregado do dia, sem instante único) e quando o
-   * Health Connect não informou um horário válido.
+   * Ausente quando o Health Connect não informou um horário válido.
    */
   measuredAt?: string;
 };
@@ -34,9 +33,15 @@ export async function submitSmartwatchSnapshot(snapshot: HealthSnapshot): Promis
         : {}),
     });
   }
-  if (snapshot.steps !== null) {
-    // Passos é um total agregado do dia: não tem horário de medição único.
-    readings.push({ type: 'steps', value: snapshot.steps, unit: 'count' });
+  if (snapshot.bodyTemperature !== null) {
+    readings.push({
+      type: 'temperature',
+      value: snapshot.bodyTemperature,
+      unit: 'celsius',
+      ...(snapshot.bodyTemperatureMeasuredAt
+        ? { measuredAt: snapshot.bodyTemperatureMeasuredAt }
+        : {}),
+    });
   }
   if (readings.length === 0) return;
 

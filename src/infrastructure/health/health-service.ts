@@ -11,8 +11,11 @@ import {
     type Permission,
 } from 'react-native-health-connect';
 
+export type HealthMetricStatus = 'coletado' | 'vazio';
+
 export type HealthSnapshot = {
   heartRate: number | null;
+  heartRateStatus: HealthMetricStatus;
   /**
    * Horário do próprio registro do Health Connect (amostra escolhida de
    * frequência cardíaca), em ISO 8601 UTC. `null` quando não há leitura ou
@@ -20,16 +23,20 @@ export type HealthSnapshot = {
    */
   heartRateMeasuredAt: string | null;
   oxygenSaturation: number | null;
+  oxygenSaturationStatus: HealthMetricStatus;
   /** Horário do registro de oxigenação usado, em ISO 8601 UTC. */
   oxygenSaturationMeasuredAt: string | null;
-  steps: number | null;
+  bodyTemperature: number | null;
+  bodyTemperatureStatus: HealthMetricStatus;
+  /** Horário do registro de temperatura usado, em ISO 8601 UTC. */
+  bodyTemperatureMeasuredAt: string | null;
   source: 'Health Connect';
 };
 
 const HEALTH_READ_PERMISSIONS: Permission[] = [
   { accessType: 'read', recordType: 'HeartRate' },
   { accessType: 'read', recordType: 'OxygenSaturation' },
-  { accessType: 'read', recordType: 'Steps' },
+  { accessType: 'read', recordType: 'BodyTemperature' },
 ];
 
 const BACKGROUND_READ_PERMISSION: BackgroundAccessPermission = {
@@ -94,7 +101,7 @@ async function requestAndVerifyPermissions(includeBackground: boolean): Promise<
 
   if (!HEALTH_READ_PERMISSIONS.every(permission => hasPermission(permission.recordType))) {
     throw new Error(
-      'Permita a leitura de frequência cardíaca, saturação de oxigênio e passos no Health Connect.',
+      'Permita a leitura de frequência cardíaca, saturação de oxigênio e temperatura corporal no Health Connect.',
     );
   }
 
@@ -142,27 +149,30 @@ async function readHealthConnect(): Promise<HealthSnapshot> {
   const range = todayRange();
   const timeRangeFilter = { operator: 'between', ...range } as const;
 
-  const [heartRateResult, oxygenResult, stepsResult] = await Promise.all([
+  const [heartRateResult, oxygenResult, temperatureResult] = await Promise.all([
     readRecords('HeartRate', { timeRangeFilter, ascendingOrder: false }),
     readRecords('OxygenSaturation', { timeRangeFilter, ascendingOrder: false }),
-    readRecords('Steps', { timeRangeFilter, ascendingOrder: false }),
+    readRecords('BodyTemperature', { timeRangeFilter, ascendingOrder: false }),
   ]);
-
-  const steps = stepsResult.records.reduce(
-    (total, record) => total + record.count,
-    0,
-  );
 
   // `ascendingOrder: false` já devolve o registro mais recente primeiro.
   const heartRate = latestHeartRate(heartRateResult.records);
   const oxygenRecord = oxygenResult.records[0] ?? null;
+  const temperatureRecord = temperatureResult.records[0] ?? null;
+  const heartRateValue = heartRate?.beatsPerMinute ?? null;
+  const oxygenSaturationValue = oxygenRecord?.percentage ?? null;
+  const bodyTemperatureValue = temperatureRecord?.temperature.inCelsius ?? null;
 
   return {
-    heartRate: heartRate?.beatsPerMinute ?? null,
+    heartRate: heartRateValue,
+    heartRateStatus: heartRateValue === null ? 'vazio' : 'coletado',
     heartRateMeasuredAt: heartRate?.measuredAt ?? null,
-    oxygenSaturation: oxygenRecord?.percentage ?? null,
+    oxygenSaturation: oxygenSaturationValue,
+    oxygenSaturationStatus: oxygenSaturationValue === null ? 'vazio' : 'coletado',
     oxygenSaturationMeasuredAt: toUtcIsoString(oxygenRecord?.time),
-    steps,
+    bodyTemperature: bodyTemperatureValue,
+    bodyTemperatureStatus: bodyTemperatureValue === null ? 'vazio' : 'coletado',
+    bodyTemperatureMeasuredAt: toUtcIsoString(temperatureRecord?.time),
     source: 'Health Connect',
   };
 }
