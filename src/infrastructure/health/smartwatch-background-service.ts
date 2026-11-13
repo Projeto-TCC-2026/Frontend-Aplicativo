@@ -3,7 +3,6 @@ import { Linking, Platform } from 'react-native';
 
 import { isRunningInExpoGo } from 'expo';
 
-import { loadNotifications } from '@/src/infrastructure/api/push-availability';
 import {
     connectToHealthForBackground,
     readHealthInBackground,
@@ -17,11 +16,9 @@ const COLLECTION_ENABLED_KEY = 'smartwatch_collection_enabled';
 const LAST_SNAPSHOT_KEY = 'smartwatch_last_health_snapshot';
 const COLLECTION_HISTORY_KEY = 'smartwatch_collection_history';
 const NEXT_COLLECTION_AT_KEY = 'smartwatch_next_collection_at';
-const SMARTWATCH_CHANNEL_ID = 'recupera-saude.smartwatch-collection';
 export const COLLECTION_INTERVAL_MINUTES = 60;
 const MAX_COLLECTION_HISTORY = 10;
 const COLLECTION_RETRY_DELAY_MS = 60_000;
-const COLLECTION_NOTIFICATION_TYPE = 'SMARTWATCH_DATA_COLLECTED';
 const HEALTH_CONNECT_PACKAGE = 'com.google.android.apps.healthdata';
 const LAST_COLLECTED_AT_KEY = 'smartwatch_last_collected_at';
 const COLLECTION_INTERVAL_MS = COLLECTION_INTERVAL_MINUTES * 60 * 1000;
@@ -243,48 +240,6 @@ async function getCollectionEnabled(): Promise<boolean> {
   return (await SecureStore.getItemAsync(COLLECTION_ENABLED_KEY)) === 'true';
 }
 
-function formatSnapshotForDevelopment(snapshot: HealthSnapshot): string {
-  const heartRate =
-    snapshot.heartRate === null ? 'sem registro' : `${snapshot.heartRate} bpm`;
-  const oxygenSaturation =
-    snapshot.oxygenSaturation === null
-      ? 'sem registro'
-      : `${snapshot.oxygenSaturation}%`;
-  const bodyTemperature =
-    snapshot.bodyTemperature === null
-      ? 'sem registro'
-      : `${snapshot.bodyTemperature} °C`;
-
-  return `FC: ${heartRate} · SpO₂: ${oxygenSaturation} · Temperatura: ${bodyTemperature}`;
-}
-
-async function notifyDataCollected(snapshot: HealthSnapshot): Promise<void> {
-  const notifications = await loadNotifications();
-
-  if (!notifications) {
-    throw new Error('As notificações locais não estão disponíveis neste dispositivo.');
-  }
-
-  if (Platform.OS === 'android') {
-    await notifications.setNotificationChannelAsync(SMARTWATCH_CHANNEL_ID, {
-      name: 'Coleta do smartwatch',
-      importance: notifications.AndroidImportance.DEFAULT,
-    });
-  }
-
-  await notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Coleta automática do smartwatch',
-      body: __DEV__
-        ? formatSnapshotForDevelopment(snapshot)
-        : 'O aplicativo coletou automaticamente seus dados de saúde.',
-      data: { type: COLLECTION_NOTIFICATION_TYPE },
-    },
-    trigger:
-      Platform.OS === 'android' ? { channelId: SMARTWATCH_CHANNEL_ID } : null,
-  });
-}
-
 async function collectAutomatically(): Promise<void> {
   if (!(await getCollectionEnabled())) return;
 
@@ -300,7 +255,6 @@ async function collectAutomatically(): Promise<void> {
 
   await saveSnapshot(snapshot);
   await submitSmartwatchSnapshot(snapshot);
-  await notifyDataCollected(snapshot);
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -454,18 +408,6 @@ export async function enableSmartwatchMonitoring(): Promise<HealthSnapshot> {
   // Health Connect disponível? (antes de qualquer outra coisa)
   await assertHealthConnectAvailable();
 
-  const notifications = await loadNotifications();
-  if (!notifications) {
-    throw new Error('As notificações locais não estão disponíveis neste dispositivo.');
-  }
-
-  const notificationPermission = await notifications.requestPermissionsAsync();
-  if (!notificationPermission.granted) {
-    throw new Error(
-      'Permita as notificações para receber avisos quando os dados forem coletados.',
-    );
-  }
-
   // Inicializa o Health Connect e pede as permissões de leitura (feito em health-service).
   const snapshot = await connectToHealthForBackground();
 
@@ -479,7 +421,6 @@ export async function enableSmartwatchMonitoring(): Promise<HealthSnapshot> {
   await SecureStore.setItemAsync(COLLECTION_ENABLED_KEY, 'true');
 
   try {
-    await notifyDataCollected(snapshot);
     await startForegroundService(Math.max(0, nextCollectionAt - Date.now()));
     return snapshot;
   } catch (error) {

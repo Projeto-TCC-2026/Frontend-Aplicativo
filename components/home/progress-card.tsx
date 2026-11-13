@@ -1,4 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
+import { colors } from '@/constants/design-tokens';
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -53,69 +55,99 @@ export function ProgressCard({ procedureTitle, doctorName, startDate, endDate }:
   const hasTotal = totalDays !== null && ratio !== null;
 
   return (
-    <View className="gap-3 rounded-[14px] border border-neutral-150 bg-white p-6 dark:border-theme-dark-border dark:bg-theme-dark-surface">
-      {/* Frase em fonte de display; a mono fica só nos números. */}
-      <Text
-        allowFontScaling
-        className="font-display text-lg font-bold text-neutral-900 dark:text-theme-dark-text-primary"
-      >
-        Dia <Text className="font-data font-semibold">{currentDay}</Text>
-        {hasTotal ? (
-          <>
-            {' de '}
-            <Text className="font-data font-semibold">{totalDays}</Text>
-          </>
-        ) : (
-          ' de acompanhamento'
-        )}
-      </Text>
-
-      {/* Sem data de término prevista não há barra: não existe total a medir. */}
-      {hasTotal ? (
-        <View
-          accessibilityLabel="Progresso do acompanhamento"
-          accessibilityRole="progressbar"
-          accessibilityValue={{
-            min: 0,
-            max: totalDays,
-            now: currentDay,
-            text: `Dia ${currentDay} de ${totalDays} do acompanhamento`,
-          }}
-          className="h-3 w-full overflow-hidden rounded-[9px] bg-neutral-150 dark:bg-theme-dark-border"
-        >
-          {/* Largura proporcional: NativeWind não gera classe para porcentagem dinâmica. */}
-          <View
-            className="h-full rounded-[9px] bg-brand-dark dark:bg-theme-dark-action"
-            style={{ width: `${Math.round(ratio * 100)}%` }}
-          />
+    <View className="relative overflow-hidden rounded-lg border border-neutral-150 bg-white p-4 shadow-sm dark:border-theme-dark-border dark:bg-theme-dark-surface">
+      <Ionicons
+        accessible={false}
+        color={colors.neutral500}
+        name="calendar-outline"
+        size={64}
+        style={{ position: 'absolute', right: 8, top: 8, opacity: 0.1 }}
+      />
+      <View className="relative z-10 gap-3">
+        <View className="gap-1.5 pr-12">
+          <Text
+            allowFontScaling
+            className="font-body text-xs font-medium tracking-wide text-neutral-500 dark:text-theme-dark-text-tertiary"
+          >
+            Procedimento
+          </Text>
+          <Text
+            allowFontScaling
+            className="font-display text-lg font-bold leading-6 text-neutral-900 dark:text-theme-dark-text-primary"
+          >
+            {procedureTitle}
+          </Text>
+          <Text
+            allowFontScaling
+            className="font-body text-sm font-medium text-neutral-700 dark:text-theme-dark-text-secondary"
+          >
+            Dr. {doctorName}
+          </Text>
         </View>
-      ) : (
-        <Text
-          allowFontScaling
-          className="font-body text-base text-neutral-700 dark:text-theme-dark-text-secondary"
-        >
-          Acompanhamento sem data de término prevista.
-        </Text>
-      )}
 
-      <Text
-        allowFontScaling
-        className="font-display text-xl font-bold leading-[26px] text-neutral-900 dark:text-theme-dark-text-primary"
-      >
-        {procedureTitle}
-      </Text>
-      <Text
-        allowFontScaling
-        className="-mt-2 font-body text-base font-medium text-neutral-700 dark:text-theme-dark-text-secondary"
-      >
-        Dr. {doctorName}
-      </Text>
+        <View className="h-px bg-neutral-300/70 dark:bg-theme-dark-border" />
+
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between gap-3">
+            <Text
+              allowFontScaling
+              className="font-body text-sm font-medium tracking-wide text-neutral-500 dark:text-theme-dark-text-tertiary"
+            >
+              Dias de acompanhamento
+            </Text>
+            <Text
+              allowFontScaling
+              className="font-data text-3xl font-semibold text-brand-dark dark:text-theme-dark-action"
+            >
+              {currentDay}
+              {hasTotal ? (
+                <Text className="font-data text-lg font-medium text-neutral-500 dark:text-theme-dark-text-tertiary">
+                  {' / '}{totalDays}
+                </Text>
+              ) : null}
+            </Text>
+          </View>
+          {hasTotal ? (
+            <View
+              accessibilityLabel="Progresso do acompanhamento"
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: totalDays,
+                now: currentDay,
+                text: `Dia ${currentDay} de ${totalDays} do acompanhamento`,
+              }}
+              className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-150 dark:bg-theme-dark-border"
+            >
+              <View
+                className="h-full rounded-full bg-brand-dark dark:bg-theme-dark-action"
+                style={{ width: `${Math.round(ratio * 100)}%` }}
+              />
+            </View>
+          ) : (
+            <Text
+              allowFontScaling
+              className="font-body text-xs text-center text-neutral-700 dark:text-theme-dark-text-secondary"
+            >
+              Acompanhamento em andamento
+            </Text>
+          )}
+        </View>
+      </View>
     </View>
   );
 }
 
 function startOfDay(value: string | Date): number | null {
-  const date = value instanceof Date ? value : new Date(value);
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else {
+    const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    date = isoDate
+      ? new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
+      : new Date(value);
+  }
   if (Number.isNaN(date.getTime())) return null;
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }

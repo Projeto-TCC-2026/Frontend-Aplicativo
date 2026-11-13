@@ -1,4 +1,5 @@
 import type { PaginatedAlerts, PatientAlert } from '@/src/domain/alert';
+import type { PatientHomeMetrics } from '@/src/domain/patient-home-metrics';
 import type { PatientProcedureSummaryResponse } from '@/src/domain/patient-procedure';
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
@@ -17,6 +18,22 @@ export async function fetchPatientProcedures(): Promise<PatientProcedureSummaryR
     PATIENT_PROCEDURES_PATH,
   );
   return normalizeProcedureList(unwrap(response));
+}
+
+/** Busca métricas dos últimos sete dias do procedimento do paciente autenticado. */
+export async function fetchPatientHomeMetrics(
+  patientProcedureId: string,
+  startDate: string,
+  endDate: string,
+): Promise<PatientHomeMetrics> {
+  return createApiClient().getPatientHomeMetrics(patientProcedureId, startDate, endDate);
+}
+
+export function getLastSevenDaysRange(today = new Date()): { startDate: string; endDate: string } {
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+  return { startDate: toLocalDateKey(start), endDate: toLocalDateKey(end) };
 }
 
 /** Busca os alertas do paciente autenticado. */
@@ -113,4 +130,11 @@ function toFirstName(fullName: string | null): string | null {
   if (!fullName) return null;
   const first = fullName.trim().split(/\s+/)[0];
   return first ? first : null;
+}
+
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

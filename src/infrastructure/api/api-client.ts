@@ -4,6 +4,7 @@ import type {
   AggregatedCheckinResponse,
   CheckinForm,
 } from '@/src/domain/checkin';
+import type { PatientHomeMetrics } from '@/src/domain/patient-home-metrics';
 import type { ApiResponse } from '@/src/shared/types/api';
 import { savePatientFullName, savePatientId } from './secure-token-store';
 import { restoreSession } from './session-bootstrap';
@@ -159,6 +160,17 @@ export class ApiClient {
   async getCheckinForm(patientProcedureId: string): Promise<CheckinForm> {
     return this.get<ApiResponse<CheckinForm>>(
       `/api/mobile/patient-procedures/${patientProcedureId}/checkin-form`,
+    ).then(unwrapResponse);
+  }
+
+  async getPatientHomeMetrics(
+    patientProcedureId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<PatientHomeMetrics> {
+    const query = new URLSearchParams({ startDate, endDate });
+    return this.get<ApiResponse<PatientHomeMetrics>>(
+      `/api/mobile/patient-procedures/${encodeURIComponent(patientProcedureId)}/home-metrics?${query}`,
     ).then(unwrapResponse);
   }
 

@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,13 @@ import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { secureTokenStore } from '@/src/infrastructure/api/secure-token-store';
 import { markCheckinCompleted } from '@/src/infrastructure/api/daily-checkin-store';
+import { fetchPatientHomeMetrics, getLastSevenDaysRange } from '@/src/application/patient-home-api';
+import {
+  buildAggregatedCheckinRequest,
+  getCheckinErrorMessage,
+  hasSelectedPhotoField,
+  validateCheckinForms,
+} from '@/src/application/checkin-submission';
 import { notify } from '@/src/shared/notify';
 import { colors } from '@/constants/design-tokens';
 
@@ -25,8 +32,11 @@ export default function Checkin() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState<AggregatedCheckinResponse | null>(null);
+  const [alreadySubmittedToday, setAlreadySubmittedToday] = useState(false);
+  const [checkinStatusLoaded, setCheckinStatusLoaded] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const procedureIds = useMemo(() => getProcedureIds(params.patientProcedureId), [params.patientProcedureId]);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     notify.dismiss();
@@ -58,12 +68,22 @@ export default function Checkin() {
 
       try {
         const client = createApiClient();
-        setForms(await Promise.all(procedureIds.map((id) => client.getCheckinForm(id))));
+        const loadedForms = await Promise.all(procedureIds.map((id) => client.getCheckinForm(id)));
+        if (!active) return;
+        setForms(loadedForms);
+        const { startDate, endDate } = getLastSevenDaysRange();
+        const statuses = await Promise.all(loadedForms.map((form) =>
+          fetchPatientHomeMetrics(form.patientProcedureId, startDate, endDate),
+        ));
+        if (!active) return;
+        setAlreadySubmittedToday(statuses.some((status) => status.submittedToday));
+        setCheckinStatusLoaded(true);
         setErrorMessage(null);
 
       } catch (error) {
         if (active) {
-          setErrorMessage(getErrorMessage(error));
+          console.error('[checkin] failed to load form or daily status:', error);
+          setErrorMessage(getCheckinErrorMessage(error, 'load'));
           if (error instanceof ApiClientError && error.status === 401) {
             await secureTokenStore.clear(); router.replace('/login');
           }
@@ -82,6 +102,7 @@ export default function Checkin() {
 
   function updateField(field: DynamicField, value: DynamicFieldValue) {
     setValues((current) => ({ ...current, [field.id]: value }));
+    idempotencyKeyRef.current = null;
     setErrors((current) => {
       const next = { ...current };
       delete next[field.id];
@@ -107,7 +128,17 @@ export default function Checkin() {
   }
 
   async function submit() {
-    const nextErrors = validateForms(forms, values);
+    if (!checkinStatusLoaded || alreadySubmittedToday) {
+      notify.warning(
+        alreadySubmittedToday
+          ? 'O relatório de hoje já foi enviado.'
+          : 'Não foi possível confirmar o status do relatório de hoje.',
+        'Envio diário',
+      );
+      return;
+    }
+
+    const nextErrors = validateCheckinForms(forms, values);
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length) {
@@ -115,23 +146,30 @@ export default function Checkin() {
       return;
     }
 
+    if (hasSelectedPhotoField(forms, values)) {
+      notify.warning(
+        'Remova a foto para enviar suas respostas. O envio de fotos ainda não está disponível.',
+        'Foto não enviada',
+      );
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const response = await createApiClient().submitAggregatedCheckin({
-        patientProcedureIds: forms.map((form) => form.patientProcedureId),
-        idempotencyKey: `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        fields: forms.flatMap((form) => form.fields).map((field) => ({
-          fieldId: field.id,
-          value: field.dataType === 'PHOTO' ? null : values[field.id],
-          photoUrl: field.dataType === 'PHOTO' ? values[field.id] : null
-        }))
-      });
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+      const request = buildAggregatedCheckinRequest(forms, values, idempotencyKeyRef.current);
+      const response = await createApiClient().submitAggregatedCheckin(request);
 
       await markCheckinCompleted();
+      setAlreadySubmittedToday(true);
       setSuccess(response);
+      idempotencyKeyRef.current = null;
     } catch (error) {
-      notify.error(getErrorMessage(error));
+      console.error('[checkin] failed to submit daily check-in:', error);
+      notify.error(getCheckinErrorMessage(error, 'submit'));
     } finally {
       setSubmitting(false);
     }
@@ -147,6 +185,12 @@ export default function Checkin() {
   if (loading || !sessionReady) return <LoadingState />;
 
   if (success) return <SuccessState editableUntil={success.editableUntil} />;
+
+  if (!checkinStatusLoaded) {
+    return <EmptyState errorMessage={errorMessage ?? 'Não foi possível verificar o status do relatório de hoje.'} onBack={goBack} />;
+  }
+
+  if (alreadySubmittedToday) return <AlreadySubmittedState onBack={goBack} />;
 
   if (!forms.length) return <EmptyState errorMessage={errorMessage} onBack={goBack} />;
 
@@ -171,9 +215,21 @@ function SuccessState({ editableUntil }: { editableUntil: string }) {
   return (
     <Screen className="items-center justify-center gap-3 bg-neutral-100 p-6 dark:bg-theme-dark-background">
       <Text className="font-display text-[26px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Check-in enviado</Text>
-      <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Seus dados foram recebidos e serão avaliados pelo Backend.</Text>
+      <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Seus dados foram enviados com sucesso.</Text>
       <Text className="font-body text-[13px] text-neutral-500 dark:text-theme-dark-text-tertiary">Editável até {new Date(editableUntil).toLocaleString('pt-BR')}</Text>
       <Button variant="secondary" onPress={() => router.replace('/' as never)}>Voltar para a Home</Button>
+    </Screen>
+  );
+}
+
+function AlreadySubmittedState({ onBack }: { onBack: () => void }) {
+  return (
+    <Screen className="items-center justify-center gap-3 bg-neutral-100 p-6 dark:bg-theme-dark-background">
+      <Text className="font-display text-[26px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Relatório enviado hoje</Text>
+      <Text className="text-center font-body text-[15px] leading-[22px] text-neutral-700 dark:text-theme-dark-text-secondary">
+        Seu envio diário já foi registrado. Você poderá preencher novamente amanhã.
+      </Text>
+      <Button variant="secondary" onPress={onBack}>Voltar para a Home</Button>
     </Screen>
   );
 }
@@ -214,22 +270,4 @@ function BackButton({ onPress }: { onPress: () => void }) {
 function getProcedureIds(parameter: string | string[] | undefined): string[] {
   const raw = parameter ?? process.env.EXPO_PUBLIC_PATIENT_PROCEDURE_ID ?? '';
   return (Array.isArray(raw) ? raw : raw.split(',')).map((id) => id.trim()).filter(Boolean);
-}
-
-function validateForms(forms: CheckinForm[], values: FieldState): FieldErrorState {
-  const errors: FieldErrorState = {};
-  for (const field of forms.flatMap((form) => form.fields)) {
-    if (field.required && !values[field.id]?.trim()) errors[field.id] = 'Este campo é obrigatório.';
-  }
-  return errors;
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    if (error.status === 401) return 'Sua sessão expirou. Faça login novamente.';
-    if (error.status === 403) return 'Você não tem acesso a este acompanhamento.';
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Não foi possível carregar o check-in.';
 }
