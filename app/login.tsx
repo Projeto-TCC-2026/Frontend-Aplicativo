@@ -6,9 +6,10 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Login() {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState(__DEV__ ? 'patient1@tcc.com' : '');
   const [password, setPassword] = useState(__DEV__ ? '123456' : '');
   const [loading, setLoading] = useState(false);
@@ -39,18 +40,18 @@ export default function Login() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-dark dark:bg-theme-dark-background">
-      <KeyboardAvoidingView
-        behavior="padding"
-        className="flex-1"
-      >
+    <SafeAreaView className="flex-1 bg-white dark:bg-theme-dark-surface" edges={['left', 'right', 'bottom']}>
+      <KeyboardAvoidingView behavior="padding" className="flex-1">
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
           {/* Topo com imagem de fundo e logo */}
-          <View className="flex-1 items-center justify-center py-16">
+          <View
+            className="flex-1 items-center justify-center pb-16"
+            style={{ paddingTop: insets.top + 64 }}
+          >
             <Image
               contentFit="cover"
               source={require('../assets/images/bg-pattern.png')}
@@ -67,7 +68,7 @@ export default function Login() {
           </View>
 
           {/* Card branco com bordas arredondadas no topo */}
-          <View className="rounded-t-[32px] bg-white px-6 pb-10 pt-8 dark:bg-theme-dark-surface">
+          <View className="rounded-t-[32px] bg-white p-10 pt-8 dark:bg-theme-dark-surface">
             <Text className="mb-1 font-display text-[24px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">
               Login
             </Text>
