@@ -1,7 +1,7 @@
 import { colors } from '@/constants/design-tokens';
 import { isRunningInExpoGo } from 'expo';
 import { useFonts } from 'expo-font';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -66,6 +66,7 @@ type NotificationInteraction = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const isLoginScreen = (useSegments() as readonly string[]).includes('login');
   const [sessionStatus, setLocalSessionStatus] = useState<SessionStatus>(getSessionStatus);
   // As telas de alerta só existem na navegação autenticada. Interações que
   // chegam antes da sessão ser restaurada ficam nesta fila (ref, não state,
@@ -267,7 +268,9 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar
+        style={isLoginScreen || colorScheme === 'dark' ? 'light' : 'dark'}
+      />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={sessionStatus === 'authenticated'}>
           <Stack.Screen name="(tabs)" />
@@ -281,7 +284,7 @@ export default function RootLayout() {
           <Stack.Screen name="esqueci-a-senha" />
         </Stack.Protected>
       </Stack>
-      <Toast config={toastConfig} position="top" topOffset={56} visibilityTime={4000} />
+      <Toast autoHide config={toastConfig} position="top" topOffset={56} visibilityTime={3000} />
     </>
   );
 }

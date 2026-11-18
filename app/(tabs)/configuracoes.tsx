@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
 
 import { Button, Card, Screen, TextField } from '@/components/ui';
 import { colors } from '@/constants/design-tokens';
@@ -13,26 +13,30 @@ type Section = 'main' | 'editAccount' | 'changePassword' | 'privacyPolicy' | 'ab
 // Componente do item de menu reutilizável
 function MenuItem({
   label,
+  icon,
   description,
   onPress,
   showDivider = true,
 }: {
   label: string;
+  icon: keyof typeof Ionicons.glyphMap;
   description?: string;
   onPress: () => void;
   showDivider?: boolean;
 }) {
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? colors.darkTextPrimary : colors.neutral900;
+
   return (
     <>
       <Pressable
         accessibilityLabel={label}
         accessibilityRole="button"
-        className="py-5 active:opacity-60"
+        className="flex-row items-center gap-3 py-6 active:opacity-60"
         onPress={onPress}
       >
-        <Text className="font-body text-[17px] font-semibold text-neutral-900 dark:text-theme-dark-text-primary">
-          {label}
-        </Text>
+        <Ionicons color={iconColor} name={icon} size={22} />
+        <Text className="font-body text-[17px] font-semibold text-neutral-900 dark:text-theme-dark-text-primary">{label}</Text>
       </Pressable>
       {showDivider && <View className="h-px bg-neutral-150 dark:bg-theme-dark-border" />}
     </>
@@ -42,7 +46,7 @@ function MenuItem({
 // Header interno reutilizável
 function SubScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
+    <View className="flex-row items-center gap-3 p-6">
       <Pressable
         accessibilityLabel="Voltar"
         accessibilityRole="button"
@@ -150,7 +154,6 @@ export default function Settings() {
   async function logout() {
     setLoading(true);
     try {
-      // Antes do logout: o unregister exige o JWT do paciente ainda válido.
       await removePushRegistration();
       await createApiClient().logout();
       router.replace('/login');
@@ -164,9 +167,9 @@ export default function Settings() {
     return (
       <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
         <SubScreenHeader title="Editar conta" onBack={() => setSection('main')} />
-        <ScrollView className="flex-1 px-5" contentContainerStyle={{ gap: 16, paddingBottom: 32 }}>
+        <ScrollView className="flex-1 px-8" contentContainerStyle={{ gap: 16, paddingBottom: 32 }}>
           <Card subtitle="Atualize suas informações de contato." title="Dados pessoais">
-            <View className="gap-4">
+            <View className="gap-4 p-2">
               <TextField
                 label="Nome completo"
                 placeholder="Seu nome"
@@ -192,22 +195,24 @@ export default function Settings() {
                 <Text className="font-body text-sm text-semantic-critical">{profileError}</Text>
               ) : null}
             </View>
+
+            <View className="gap-3 mt-5 flex flex-row justify-end">
+              <Button fullWidth variant="secondary" onPress={() => setSection('main')}>
+                Cancelar
+              </Button>
+
+              <Button
+                fullWidth
+                loading={profileLoading}
+                loadingText="Salvando..."
+                variant="primary"
+                onPress={() => void handleUpdateProfile()}
+              >
+                Salvar alterações
+              </Button>
+            </View>
           </Card>
 
-          <View className="gap-3">
-            <Button
-              fullWidth
-              loading={profileLoading}
-              loadingText="Salvando..."
-              variant="primary"
-              onPress={() => void handleUpdateProfile()}
-            >
-              Salvar alterações
-            </Button>
-            <Button fullWidth variant="secondary" onPress={() => setSection('main')}>
-              Cancelar
-            </Button>
-          </View>
         </ScrollView>
       </Screen>
     );
@@ -225,7 +230,7 @@ export default function Settings() {
                 <Text className="font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">
                   Nossa missão
                 </Text>
-                <Text className="font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
+                <Text className="text-justify font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
                   Somos uma equipe dedicada a transformar o acompanhamento pós-operatório por meio da tecnologia. Nossa missão é conectar pacientes e equipes médicas de forma simples, segura e eficiente, promovendo uma recuperação mais tranquila e bem monitorada.
                 </Text>
               </View>
@@ -236,7 +241,7 @@ export default function Settings() {
                 <Text className="font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">
                   O que fazemos
                 </Text>
-                <Text className="font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
+                <Text className="text-justify font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
                   Desenvolvemos soluções digitais que permitem ao paciente registrar seu progresso diário, receber orientações personalizadas e manter contato com sua equipe de saúde — tudo em um único lugar, direto pelo celular.
                 </Text>
               </View>
@@ -247,7 +252,7 @@ export default function Settings() {
                 <Text className="font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">
                   Nossos valores
                 </Text>
-                <Text className="font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
+                <Text className="text-justify font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
                   Acreditamos na transparência, no respeito à privacidade dos dados e no cuidado com o bem-estar do paciente. Cada funcionalidade é pensada para ser acessível, intuitiva e confiável.
                 </Text>
               </View>
@@ -258,7 +263,7 @@ export default function Settings() {
                 <Text className="font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">
                   Versão do aplicativo
                 </Text>
-                <Text className="font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
+                <Text className="text-center font-body text-[14px] leading-5 text-green-400">
                   Versão 1.0.0
                 </Text>
               </View>
@@ -274,7 +279,7 @@ export default function Settings() {
     return (
       <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
         <SubScreenHeader title="Termo de privacidade" onBack={() => setSection('main')} />
-        <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView className="flex-1 px-5 mb-16" contentContainerStyle={{ paddingBottom: 32 }}>
           <Card padding="lg">
             <View className="gap-5">
               <View className="gap-2">
@@ -345,8 +350,8 @@ export default function Settings() {
     return (
       <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
         <SubScreenHeader title="Alterar senha" onBack={() => setSection('main')} />
-        <View className="flex-1 gap-4 px-5 pb-8">
-          <Card subtitle="Digite sua senha atual e defina uma nova senha." title="Nova senha">
+        <View className="flex-1 px-8">
+          <Card padding='lg' subtitle="Digite sua senha atual e defina uma nova senha." title="Nova senha">
             <View className="gap-4">
               <TextField
                 label="Senha atual"
@@ -375,22 +380,21 @@ export default function Settings() {
                 <Text className="font-body text-sm text-semantic-critical">{passwordError}</Text>
               ) : null}
             </View>
+            <View className="gap-3 mt-5 flex flex-row justify-end">
+              <Button fullWidth variant="secondary" onPress={() => setSection('main')}>
+                Cancelar
+              </Button>
+              <Button
+                fullWidth
+                loading={passwordLoading}
+                loadingText="Alterando..."
+                variant="primary"
+                onPress={() => void handleChangePassword()}
+              >
+                Alterar senha
+              </Button>
+            </View>
           </Card>
-
-          <View className="gap-3">
-            <Button
-              fullWidth
-              loading={passwordLoading}
-              loadingText="Alterando..."
-              variant="primary"
-              onPress={() => void handleChangePassword()}
-            >
-              Alterar senha
-            </Button>
-            <Button fullWidth variant="secondary" onPress={() => setSection('main')}>
-              Cancelar
-            </Button>
-          </View>
         </View>
       </Screen>
     );
@@ -400,23 +404,42 @@ export default function Settings() {
   return (
     <Screen className="bg-neutral-100 dark:bg-theme-dark-background p-8 gap-5">
       {/* Título */}
-      <View>
-        <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">
-          Configurações
-        </Text>
-        <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">
-          Preferências e acesso à sua conta.
-        </Text>
+      <View className='flex flex-row justify-between'>
+        <View className='flex flex-col'>
+          <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">
+            Configurações
+          </Text>
+          <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">
+            Preferências e acesso à sua conta.
+          </Text>
+        </View>
+
+        <View>
+
+          <Pressable
+            className='rounded-full p-4 bg-red-400/20 flex items-center justify-center'
+            onPress={() => void logout()}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator  />
+            ) : (
+              <Ionicons color='red' name='log-out-outline' size={26} /> 
+            )}
+          </Pressable>
+        </View>
       </View>
 
       {/* Seção de conta */}
-      <Card title="Conta">
+      <Card title="Conta" padding='lg'>
         <MenuItem
+          icon="person-outline"
           label="Editar conta"
           onPress={() => void openEditAccount()}
         />
         <MenuItem
           description="Altere a senha de acesso à sua conta."
+          icon="key-outline"
           label="Alterar senha"
           showDivider={false}
           onPress={() => setSection('changePassword')}
@@ -424,34 +447,27 @@ export default function Settings() {
       </Card>
 
       {/* Seção sobre */}
-      <Card title="Sobre">
+      <Card title="Sobre" padding='lg'>
         <MenuItem
           description="Consulte os termos de privacidade e informações importantes sobre o uso da plataforma."
+          icon="shield-checkmark-outline"
           label="Termos de privacidade"
           onPress={() => setSection('privacyPolicy')}
         />
         <MenuItem
           description="Conheça nossa equipe e saiba mais sobre o projeto."
+          icon="information-circle-outline"
           label="Sobre nós"
           onPress={() => setSection('about')}
         />
         <MenuItem
           description="Entre em contato conosco por e-mail."
+          icon="mail-outline"
           label="Contate-nos"
           showDivider={false}
           onPress={() => void Linking.openURL('mailto:tcc.cc.aacijl@gmail.com')}
         />
       </Card>
-
-      <Button
-        fullWidth
-        loading={loading}
-        loadingText="Saindo..."
-        variant="destructive"
-        onPress={() => void logout()}
-      >
-        Sair da conta
-      </Button>
     </Screen>
   );
 }
