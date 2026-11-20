@@ -12,9 +12,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   AppState,
-  Easing,
   Modal,
   Platform,
   Pressable,
@@ -31,7 +29,7 @@ export default function Smartwatch() {
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null);
   const [lastCollectedAt, setLastCollectedAt] = useState<string | null>(null);
   const [collections, setCollections] = useState<SmartwatchCollection[]>([]);
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -138,35 +136,45 @@ export default function Smartwatch() {
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Meu smartwatch</Text>
           <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhamento 24 horas com dados do seu smartwatch</Text>
+          <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400"/> 
         </View>
 
-        <View className="mt-4 items-center">
+        <Pressable
+          onPress={handleButtonPress}
+          disabled={!isAndroid || updating}
+          className={`w-full flex-row items-center justify-between rounded-[14px] border p-6 ${enabled ? 'border-green-500 bg-green-500' : 'border-neutral-150 bg-white dark:border-theme-dark-border dark:bg-theme-dark-surface'} ${!isAndroid || updating ? 'opacity-50' : 'active:opacity-80'}`}
+        >
           {loading ? (
-            <View className="items-center py-16">
+            <View className="items-center py-4">
               <ActivityIndicator />
               <Text className="mt-3 font-body text-neutral-700 dark:text-theme-dark-text-secondary">Carregando preferências...</Text>
             </View>
           ) : (
             <>
-              <MonitoringButton
-                running={enabled}
-                busy={updating}
-                disabled={!isAndroid || updating}
-                onPress={handleButtonPress}
-              />
+              {updating ? (
+                <ActivityIndicator color={enabled ? '#FFFFFF' : GRAY} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="watch" size={48} color={enabled ? '#FFFFFF' : GRAY} />
+                  <Text className={`font-body text-[16px] ${enabled ? 'text-white' : 'text-neutral-600 dark:text-theme-dark-text-secondary'}`}>
+                    {enabled ? 'Aperte aqui para desligar' : 'Aperte aqui para ligar'}
+                  </Text>
+                </>
+              )}
 
-              {!isAndroid ? (
-                <Text className="mt-1 px-4 text-center font-body text-[14px] leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">
-                  A coleta automática do smartwatch está disponível apenas no Android.
-                </Text>
-              ) : null}
-
-              {error ? (
-                <Text className="mt-4 text-center font-body text-[14px] text-semantic-critical">{error}</Text>
-              ) : null}
             </>
           )}
-        </View>
+        </Pressable>
+
+        {!isAndroid ? (
+          <Text className="mt-2 px-1 text-center font-body text-[14px] leading-5 text-neutral-500 dark:text-theme-dark-text-secondary">
+            A coleta automática do smartwatch está disponível apenas no Android.
+          </Text>
+        ) : null}
+
+        {error ? (
+          <Text className="mt-2 px-1 text-center font-body text-[14px] text-semantic-critical">{error}</Text>
+        ) : null}
 
         {enabled && (
           <View>
@@ -249,20 +257,17 @@ export default function Smartwatch() {
           </View>
         )}
         {!enabled && isAndroid && (
-          <View>
-            <Card title="Como funciona" subtitle="Coleta automática dos dados do seu smartwatch">
-              <View className="gap-3">
-                <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
-                  1. Toque em <Text className="font-bold">Ligar</Text> e permita o acesso aos dados de saúde e notificações;
-                </Text>
-                <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
-                  2. O app lê frequência cardíaca, oxigenação do sangue e temperatura corporal aproximadamente a cada hora, em segundo plano. Mantenha o relógio sincronizado com o app de saúde do celular;
-                </Text>
-                <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
-                  3. Os últimos dados coletados aparecem aqui e você pode desligar quando quiser.
-                </Text>
-              </View>
-            </Card>
+          <View className="gap-3">
+            <Text className="font-display text-[20px] font-bold text-neutral-900 dark:text-theme-dark-text-primary">Como funciona?</Text>
+            <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
+              1. Toque em <Text className="font-bold">Ligar</Text> e permita o acesso aos dados de saúde e notificações;
+            </Text>
+            <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
+              2. O app lê frequência cardíaca, oxigenação do sangue e temperatura corporal aproximadamente a cada hora, em segundo plano. Mantenha o relógio sincronizado com o app de saúde do celular;
+            </Text>
+            <Text className="text-justify font-body text-[15px] leading-6 text-neutral-700 dark:text-theme-dark-text-secondary">
+              3. Os últimos dados coletados aparecem aqui e você pode desligar quando quiser.
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -345,78 +350,6 @@ export default function Smartwatch() {
   );
 }
 
-type MonitoringButtonProps = {
-  running: boolean;
-  busy: boolean;
-  disabled: boolean;
-  onPress: () => void;
-};
-
-function MonitoringButton({ running, busy, disabled, onPress }: MonitoringButtonProps) {
-  const pulse = useRef(new Animated.Value(0)).current;
-
-  const label = busy ? (running ? 'Desligando...' : 'Ligando...') : running ? 'Desligar' : 'Ligar';
-
-  // Pulso suave: só enquanto a coleta está em execução.
-  useEffect(() => {
-    if (!running) return;
-
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 2400,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-
-    return () => {
-      loop.stop();
-      pulse.setValue(0);
-    };
-  }, [running, pulse]);
-
-  return (
-    <View className="h-[200px] w-[200px] items-center justify-center">
-      {running ? (
-        <Animated.View
-          pointerEvents="none"
-          className="absolute h-[132px] w-[132px] rounded-full bg-[#16A34A]"
-          // Valores animados não têm equivalente em classe: ficam em style.
-          style={{
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }],
-          }}
-        />
-      ) : null}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={running ? 'Desligar coleta automática do smartwatch' : 'Ligar coleta automática do smartwatch'}
-        accessibilityState={{ disabled, busy }}
-        disabled={disabled}
-        onPress={onPress}
-        className={`h-[132px] w-[132px] items-center justify-center gap-1.5 rounded-full border-[2px] ${running ? 'border-[#16A34A] bg-[#16A34A] shadow-lg' : 'border-[#6B7280] bg-transparent'
-          } ${disabled && !busy ? 'opacity-50' : 'active:opacity-80'}`}
-      >
-        {busy ? (
-          <ActivityIndicator size="large" color={running ? '#FFFFFF' : GRAY} />
-        ) : (
-          <MaterialCommunityIcons name="watch" size={48} color={running ? '#FFFFFF' : GRAY} />
-        )}
-        <Text
-          className={`font-display text-[15px] font-bold ${running ? 'text-white' : 'text-[#6B7280]'}`}
-        >
-          {label}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
 
 function formatCollectedAt(iso: string | null): string | null {
   if (!iso) return null;

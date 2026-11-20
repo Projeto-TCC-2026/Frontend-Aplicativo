@@ -1,7 +1,7 @@
-import { Circle, Line, Path, Svg } from 'react-native-svg';
-import { Text, View } from 'react-native';
-import type { PatientFieldTrend, PatientHomeMetrics } from '@/src/domain/patient-home-metrics';
 import { colors } from '@/constants/design-tokens';
+import type { PatientFieldTrend, PatientHomeMetrics } from '@/src/domain/patient-home-metrics';
+import { Text, View } from 'react-native';
+import { Circle, Line, Path, Svg } from 'react-native-svg';
 
 const CHART_WIDTH = 300;
 const CHART_HEIGHT = 132;
@@ -61,7 +61,7 @@ export function HomeWeeklyMetrics({ metrics }: { metrics: PatientHomeMetrics }) 
         </View>
       </View>
 
-      <View className="gap-3">
+      <View className="gap-4">
         <Text className="font-display text-lg font-bold text-neutral-900 dark:text-theme-dark-text-primary">
           Evolução dos últimos 7 dias
         </Text>

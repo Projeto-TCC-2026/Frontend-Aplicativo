@@ -2,13 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, useColorScheme, View } from 'react-native';
 
-import { Button, Card, EmptyState, ErrorState, LoadingState, Screen, StatusBadge } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorState, LoadingState, Screen } from '@/components/ui';
 import { colors } from '@/constants/design-tokens';
 import { openAlertResponseScreen } from '@/src/application/alert-response';
 import {
-    describeAlertStatus,
-    isAwaitingPatientResponse,
-    type PatientAlert,
+  isAwaitingPatientResponse,
+  type PatientAlert
 } from '@/src/domain/alert';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
 
@@ -90,29 +89,23 @@ function AlertCard({ alert }: { alert: PatientAlert }) {
 
   return (
     <Card padding="md">
-      <View className="flex-row items-start gap-3">
-        <View className={`mt-0.5 h-9 w-9 items-center justify-center rounded-full ${tone === 'critical' ? 'bg-semantic-critical-bg dark:bg-theme-dark-critical-background' : tone === 'attention' ? 'bg-semantic-attention-bg dark:bg-theme-dark-attention-background' : 'bg-semantic-info-bg dark:bg-theme-dark-info-background'}`}>
-          <Ionicons color={iconColor} name="warning-outline" size={20} />
-        </View>
-        <View className="flex-1 gap-2">
-          <View className="flex-row items-start justify-between gap-3">
-            <Text className="flex-1 font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">{alert.title}</Text>
-            <StatusBadge label={alert.severity} tone={tone} />
-          </View>
-          {alert.description ? <Text className="font-body text-sm leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">{alert.description}</Text> : null}
-          <Text className="font-body text-xs text-neutral-700 dark:text-theme-dark-text-secondary">{describeAlertStatus(alert.status)}</Text>
+      <View className="gap-2">
+        <View className="flex-row items-center justify-between">
+          <Ionicons color={iconColor} name="warning-outline" size={30} />
           <Text className="font-data text-[11px] text-neutral-500 dark:text-theme-dark-text-tertiary">{date}</Text>
-          {awaitingResponse ? (
-            <Button
-              accessibilityLabel={`Responder ao alerta ${alert.title}`}
-              onPress={() => openAlertResponseScreen(alert.id)}
-              size="sm"
-              variant="secondary"
-            >
-              Responder
-            </Button>
-          ) : null}
         </View>
+        <Text className="font-display text-base font-bold text-neutral-900 dark:text-theme-dark-text-primary">{alert.title}</Text>
+        {alert.description ? <Text className="font-body text-sm leading-5 text-neutral-700 dark:text-theme-dark-text-secondary">{alert.description}</Text> : null}
+        {awaitingResponse ? (
+          <Button
+            accessibilityLabel={`Responder ao alerta ${alert.title}`}
+            onPress={() => openAlertResponseScreen(alert.id)}
+            size="sm"
+            variant="secondary"
+          >
+            Responder
+          </Button>
+        ) : null}
       </View>
     </Card>
   );

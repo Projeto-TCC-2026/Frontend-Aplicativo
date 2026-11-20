@@ -2,26 +2,25 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, Text } from 'react-native';
 
-import { AlertCard } from '@/components/home/alert-card';
 import { CheckinCard } from '@/components/home/checkin-card';
 import { HomeErrorCard, NoProcedureCard } from '@/components/home/home-messages';
 import { HomeSkeleton } from '@/components/home/home-skeleton';
-import { ProgressCard } from '@/components/home/progress-card';
 import { HomeWeeklyMetrics } from '@/components/home/home-weekly-metrics';
+import { ProgressCard } from '@/components/home/progress-card';
 import { Screen } from '@/components/ui';
 import {
-    describeHomeError,
-    fetchPatientAlerts,
-    fetchPatientFirstName,
-    fetchPatientHomeMetrics,
-    fetchPatientProcedures,
-    getLastSevenDaysRange,
-    isOpenAlert,
-    selectCurrentProcedure,
+  describeHomeError,
+  fetchPatientAlerts,
+  fetchPatientFirstName,
+  fetchPatientHomeMetrics,
+  fetchPatientProcedures,
+  getLastSevenDaysRange,
+  isOpenAlert,
+  selectCurrentProcedure,
 } from '@/src/application/patient-home-api';
 import type { PatientAlert } from '@/src/domain/alert';
-import type { PatientProcedureSummaryResponse } from '@/src/domain/patient-procedure';
 import type { PatientHomeMetrics } from '@/src/domain/patient-home-metrics';
+import type { PatientProcedureSummaryResponse } from '@/src/domain/patient-procedure';
 
 /** A tela de check-in existe em app/checkin.tsx. */
 const CHECKIN_ROUTE = '/checkin';
@@ -107,7 +106,7 @@ export default function Home() {
 
   return (
     <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
-      <ScrollView contentContainerClassName="flex-grow gap-6 pt-10 pb-8 px-6" showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerClassName="flex-grow gap-4 pt-10 pb-8 px-6" showsVerticalScrollIndicator={false}>
         {loading && showSkeleton ? <HomeSkeleton /> : null}
 
         {loading ? null : (

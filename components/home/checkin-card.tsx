@@ -19,7 +19,7 @@ export function CheckinCard({ onPress, onHelpPress, available, submittedToday = 
   const statusClasses = submittedToday
     ? 'border-semantic-success/40 bg-semantic-success-bg dark:border-theme-dark-border dark:bg-theme-dark-surface'
     : canSubmit
-      ? 'border-semantic-attention/40 bg-semantic-attention-bg dark:border-theme-dark-border dark:bg-theme-dark-attention-background'
+      ? 'border-neutral-150 bg-white dark:border-theme-dark-border dark:bg-theme-dark-surface'
       : 'border-neutral-150 bg-white dark:border-theme-dark-border dark:bg-theme-dark-surface';
 
   return (
@@ -45,9 +45,9 @@ export function CheckinCard({ onPress, onHelpPress, available, submittedToday = 
           accessibilityRole="button"
           accessibilityState={{ disabled: !canSubmit }}
           className={`min-h-12 min-w-11 items-center justify-center rounded-[9px] px-4 py-3 ${canSubmit
-            ? 'bg-brand-dark active:bg-brand-deeper dark:bg-theme-dark-action'
+            ? 'bg-semantic-attention active:opacity-80 dark:bg-[#59451E]'
             : submittedToday
-              ? 'bg-neutral-300'
+              ? 'bg-neutral-300 dark:bg-theme-dark-border'
               : 'bg-neutral-300 dark:bg-theme-dark-border'
             }`}
           disabled={!canSubmit}
@@ -56,7 +56,7 @@ export function CheckinCard({ onPress, onHelpPress, available, submittedToday = 
           <Text
             allowFontScaling
             className={`font-body text-sm font-semibold ${canSubmit
-              ? 'text-white dark:text-theme-dark-background'
+              ? 'text-neutral-900 dark:text-theme-dark-text-primary'
               : 'text-white dark:text-theme-dark-text-primary'
               }`}
           >
@@ -67,7 +67,7 @@ export function CheckinCard({ onPress, onHelpPress, available, submittedToday = 
       <Pressable
         accessibilityLabel="Precisa de ajuda?"
         accessibilityRole="button"
-        className="flex flex-row align-center justify-center border border-neutral-300 rounded-b-lg border-t-0 w-full py-3"
+        className="flex flex-row align-center justify-center border border-neutral-300 rounded-b-lg border-t-0 w-full py-3 dark:border-theme-dark-border"
         onPress={onHelpPress}
       >
         <Text
