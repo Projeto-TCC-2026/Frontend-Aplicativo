@@ -1,6 +1,6 @@
+import { colors } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
-import { colors } from '@/constants/design-tokens';
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -93,7 +93,7 @@ export function ProgressCard({ procedureTitle, doctorName, startDate, endDate }:
               allowFontScaling
               className="font-body text-sm font-medium tracking-wide text-neutral-500 dark:text-theme-dark-text-tertiary"
             >
-              Dias de acompanhamento
+              Dias já acompanhados
             </Text>
             <Text
               allowFontScaling
@@ -107,7 +107,7 @@ export function ProgressCard({ procedureTitle, doctorName, startDate, endDate }:
               ) : null}
             </Text>
           </View>
-          {hasTotal ? (
+          {hasTotal && (
             <View
               accessibilityLabel="Progresso do acompanhamento"
               accessibilityRole="progressbar"
@@ -124,13 +124,6 @@ export function ProgressCard({ procedureTitle, doctorName, startDate, endDate }:
                 style={{ width: `${Math.round(ratio * 100)}%` }}
               />
             </View>
-          ) : (
-            <Text
-              allowFontScaling
-              className="font-body text-xs text-center text-neutral-700 dark:text-theme-dark-text-secondary"
-            >
-              Acompanhamento em andamento
-            </Text>
           )}
         </View>
       </View>
