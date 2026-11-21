@@ -33,3 +33,7 @@ export function formatCNPJ(cnpj: string): string {
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d)/, '$1-$2');
 }
+
+export function formatDecimal(value: number, maximumFractionDigits = 2): string {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits });
+}

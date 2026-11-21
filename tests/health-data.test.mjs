@@ -56,6 +56,24 @@ test('returns one sample for both percentiles and an explicit zero count for an 
   );
 });
 
+test('rounds percentile values to at most two decimal places', () => {
+  const samples = [
+    { value: 36.123456, time: '2026-11-18T10:10:00.000Z' },
+    { value: 36.987654, time: '2026-11-18T10:20:00.000Z' },
+  ];
+
+  assert.deepEqual(
+    summarizeHealthSamples(samples, WINDOW_START, WINDOW_END),
+    {
+      percentile5: 36.12,
+      percentile95: 36.99,
+      percentile5MeasuredAt: '2026-11-18T10:10:00.000Z',
+      percentile95MeasuredAt: '2026-11-18T10:20:00.000Z',
+      sampleCount: 2,
+    },
+  );
+});
+
 test('counts one sample per timestamp so the Backend idempotency key preserves both bounds', () => {
   const sameTime = '2026-11-18T10:30:00.000Z';
 

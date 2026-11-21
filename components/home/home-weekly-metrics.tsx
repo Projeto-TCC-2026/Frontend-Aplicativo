@@ -1,4 +1,5 @@
 import { colors } from '@/constants/design-tokens';
+import { formatDecimal } from '@/core/helpers';
 import type { PatientFieldTrend, PatientHomeMetrics } from '@/src/domain/patient-home-metrics';
 import { Text, View } from 'react-native';
 import { Circle, Line, Path, Svg } from 'react-native-svg';
@@ -180,5 +181,5 @@ function dayLabel(value: string): string {
 }
 
 function formatValue(value: number): string {
-  return value.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  return formatDecimal(value);
 }

@@ -1,4 +1,5 @@
 import { Button, Card, Screen } from '@/components/ui';
+import { formatDecimal } from '@/core/helpers';
 import type { HealthMetricSummary } from '@/src/infrastructure/health/health-metrics';
 import type { HealthSnapshot } from '@/src/infrastructure/health/health-service';
 import {
@@ -374,8 +375,8 @@ function formatMetric(metric: HealthMetricSummary, unit: string): [string, strin
   if (!metric.percentile5 || metric.percentile5 <= 0 || !metric.percentile95 || metric.percentile95 <= 0)
     return null;
   return [
-    `P5 ${metric.percentile5} ${unit}`,
-    `P95 ${metric.percentile95} ${unit}`,
+    `P5 ${formatDecimal(metric.percentile5)} ${unit}`,
+    `P95 ${formatDecimal(metric.percentile95)} ${unit}`,
   ];
 }
 

@@ -61,12 +61,13 @@ export function summarizeHealthSamples(
 
   const nearestRank = (percentile: number) =>
     validSamples[Math.ceil((percentile / 100) * validSamples.length) - 1];
+  const roundToTwoDecimals = (value: number) => Number(value.toFixed(2));
   const percentile5 = nearestRank(5);
   const percentile95 = nearestRank(95);
 
   return {
-    percentile5: percentile5.value,
-    percentile95: percentile95.value,
+    percentile5: roundToTwoDecimals(percentile5.value),
+    percentile95: roundToTwoDecimals(percentile95.value),
     percentile5MeasuredAt: new Date(percentile5.time).toISOString(),
     percentile95MeasuredAt: new Date(percentile95.time).toISOString(),
     sampleCount: validSamples.length,
