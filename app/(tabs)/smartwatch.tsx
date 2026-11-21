@@ -143,7 +143,7 @@ export default function Smartwatch() {
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Meu smartwatch</Text>
           <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhamento 24 horas com dados do seu smartwatch</Text>
-          <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400"/>
+          <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400/20" />
         </View>
 
         <Pressable
@@ -329,17 +329,17 @@ export default function Smartwatch() {
               {selectedCollection ? (
                 <View className="gap-3">
                   <HealthValue
-                    label="Oxigenação do sangue (SpO₂)"
+                    label="SpO₂"
                     metric={selectedCollection.snapshot.oxygenSaturation}
                     unit="%"
                   />
                   <HealthValue
-                    label="Temperatura corporal"
+                    label="Temp. corporal"
                     metric={selectedCollection.snapshot.bodyTemperature}
                     unit="°C"
                   />
                   <HealthValue
-                    label="Frequência cardíaca"
+                    label="Freq. cardíaca"
                     metric={selectedCollection.snapshot.heartRate}
                     unit="bpm"
                   />
@@ -370,9 +370,13 @@ function formatCollectedAt(iso: string | null): string | null {
   });
 }
 
-function formatMetric(metric: HealthMetricSummary, unit: string): string {
-  if (metric.percentile5 === null || metric.percentile95 === null) return 'Vazio';
-  return `P5 ${metric.percentile5} · P95 ${metric.percentile95} ${unit}`;
+function formatMetric(metric: HealthMetricSummary, unit: string): [string, string] | null {
+  if (!metric.percentile5 || metric.percentile5 <= 0 || !metric.percentile95 || metric.percentile95 <= 0)
+    return null;
+  return [
+    `P5 ${metric.percentile5} ${unit}`,
+    `P95 ${metric.percentile95} ${unit}`,
+  ];
 }
 
 function HealthValue({
@@ -384,16 +388,22 @@ function HealthValue({
   metric: HealthMetricSummary;
   unit: string;
 }) {
+  let labelColor = (metric.sampleCount > 0) ? "text-neutral-900 dark:text-theme-dark-text-primary" : "text-orange-400";
+  let labelClass = `font-data text-[15px] font-bold ${labelColor}`;
+  const formattedMetric = formatMetric(metric, unit);
+
   return (
     <View className="flex-row items-center justify-between border-b border-neutral-150 pb-3 dark:border-theme-dark-border">
       <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">{label}</Text>
       <View className="items-end">
-        <Text className="font-data text-[15px] font-bold text-neutral-900 dark:text-theme-dark-text-primary">
-          {formatMetric(metric, unit)}
-        </Text>
-        <Text className="font-body text-[12px] text-neutral-500 dark:text-theme-dark-text-tertiary">
-          Status: {metric.sampleCount > 0 ? 'coletado' : 'vazio'}
-        </Text>
+        {formattedMetric ? (
+          <>
+            <Text className={labelClass}>{formattedMetric[0]}</Text>
+            <Text className={labelClass}>{formattedMetric[1]}</Text>
+          </>
+        ) : (
+          <Text className={labelClass}>Vazio</Text>
+        )}
       </View>
     </View>
   );
