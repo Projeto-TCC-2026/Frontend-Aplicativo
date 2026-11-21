@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, Text, useColorScheme, 
 import { Ionicons } from '@expo/vector-icons';
 import { Button, ErrorState, Screen } from '@/components/ui';
 import { DynamicFieldRenderer, type DynamicFieldValue } from '@/components/dynamic-field-renderer';
-import type { AggregatedCheckinResponse, CheckinForm, DynamicField } from '@/src/domain/checkin';
+import type { CheckinForm, DynamicField } from '@/src/domain/checkin';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { secureTokenStore } from '@/src/infrastructure/api/secure-token-store';
@@ -31,7 +31,6 @@ export default function Checkin() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [success, setSuccess] = useState<AggregatedCheckinResponse | null>(null);
   const [alreadySubmittedToday, setAlreadySubmittedToday] = useState(false);
   const [checkinStatusLoaded, setCheckinStatusLoaded] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
@@ -108,7 +107,6 @@ export default function Checkin() {
       delete next[field.id];
       return next;
     });
-    setSuccess(null);
   }
 
   async function pickPhoto(field: DynamicField) {
@@ -161,12 +159,12 @@ export default function Checkin() {
         idempotencyKeyRef.current = `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       }
       const request = buildAggregatedCheckinRequest(forms, values, idempotencyKeyRef.current);
-      const response = await createApiClient().submitAggregatedCheckin(request);
+      await createApiClient().submitAggregatedCheckin(request);
 
       await markCheckinCompleted();
-      setAlreadySubmittedToday(true);
-      setSuccess(response);
       idempotencyKeyRef.current = null;
+      notify.success('Seus dados foram enviados com sucesso.', 'Check-in enviado');
+      router.replace('/' as never);
     } catch (error) {
       console.error('[checkin] failed to submit daily check-in:', error);
       notify.error(getCheckinErrorMessage(error, 'submit'));
@@ -183,8 +181,6 @@ export default function Checkin() {
   }
 
   if (loading || !sessionReady) return <LoadingState />;
-
-  if (success) return <SuccessState editableUntil={success.editableUntil} />;
 
   if (!checkinStatusLoaded) {
     return <EmptyState errorMessage={errorMessage ?? 'Não foi possível verificar o status do relatório de hoje.'} onBack={goBack} />;
@@ -209,17 +205,6 @@ export default function Checkin() {
 
 function LoadingState() {
   return <Screen className="items-center justify-center bg-neutral-100 dark:bg-theme-dark-background"><ActivityIndicator color={colors.primary} size="large" /></Screen>;
-}
-
-function SuccessState({ editableUntil }: { editableUntil: string }) {
-  return (
-    <Screen className="items-center justify-center gap-3 bg-neutral-100 p-6 dark:bg-theme-dark-background">
-      <Text className="font-display text-[26px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Check-in enviado</Text>
-      <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Seus dados foram enviados com sucesso.</Text>
-      <Text className="font-body text-[13px] text-neutral-500 dark:text-theme-dark-text-tertiary">Editável até {new Date(editableUntil).toLocaleString('pt-BR')}</Text>
-      <Button variant="secondary" onPress={() => router.replace('/' as never)}>Voltar para a Home</Button>
-    </Screen>
-  );
 }
 
 function AlreadySubmittedState({ onBack }: { onBack: () => void }) {
