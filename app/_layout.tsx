@@ -18,7 +18,9 @@ import {
 import { createApiClient } from '@/src/infrastructure/api/api-config';
 import { isPushSupported, loadNotifications } from '@/src/infrastructure/api/push-availability';
 import {
+    DAILY_FORM_REMINDER_TYPE,
     ensureAndroidNotificationChannel,
+    ensureDailyCheckinReminder,
     ensureSevereCheckCategory,
     initPushHandlers
 } from '@/src/infrastructure/api/push-service';
@@ -105,6 +107,11 @@ export default function RootLayout() {
     void restoreStoredSession();
     return unsubscribe;
   }, [restoreStoredSession]);
+
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated' || !isPushSupported) return;
+    void ensureDailyCheckinReminder();
+  }, [sessionStatus]);
 
   useEffect(() => {
     if (
@@ -203,7 +210,7 @@ export default function RootLayout() {
       subscriptions = [
         notifications.addNotificationReceivedListener(notification => {
           const { title, body, data } = notification.request.content;
-          if (data?.type === 'SMARTWATCH_DATA_COLLECTED') {
+          if (data?.type === 'SMARTWATCH_DATA_COLLECTED' || data?.type === DAILY_FORM_REMINDER_TYPE) {
             return;
           }
           // Alerta grave em primeiro plano abre a tela de resposta em vez de
@@ -311,6 +318,11 @@ function enqueueNotificationResponse(
  * Qualquer outra notificação continua levando à aba de alertas.
  */
 function handleNotificationInteraction({ actionIdentifier, data }: NotificationInteraction) {
+  if (data?.type === DAILY_FORM_REMINDER_TYPE) {
+    router.push('/checkin');
+    return;
+  }
+
   const alertId = readAlertId(data);
 
   if (isSevereCheckPayload(data) && alertId) {

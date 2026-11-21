@@ -1,7 +1,7 @@
 import { Button, TextField } from '@/components/ui';
 import { ApiClientError } from '@/src/infrastructure/api/api-client';
 import { createApiClient } from '@/src/infrastructure/api/api-config';
-import { syncPushRegistration } from '@/src/infrastructure/api/push-service';
+import { ensureDailyCheckinReminder, syncPushRegistration } from '@/src/infrastructure/api/push-service';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -25,6 +25,7 @@ export default function Login() {
     try {
       await createApiClient().loginPatient(email.trim(), password);
       void syncPushRegistration();
+      void ensureDailyCheckinReminder();
       router.replace('/' as never);
     } catch (error) {
       setErrorMessage(

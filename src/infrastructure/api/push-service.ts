@@ -5,10 +5,10 @@ import { Platform } from 'react-native';
 import { createApiClient } from './api-config';
 import { isPushSupported, loadNotifications } from './push-availability';
 import {
-    clearRegisteredPushToken,
-    getRegisteredPushToken,
-    hasPushTokenChanged,
-    saveRegisteredPushToken,
+  clearRegisteredPushToken,
+  getRegisteredPushToken,
+  hasPushTokenChanged,
+  saveRegisteredPushToken,
 } from './push-token-store';
 
 export const ANDROID_ALERT_CHANNEL_ID = 'recupera-saude.clinical-alerts';
@@ -26,6 +26,10 @@ export const SEVERE_CHECK_NOTIFICATION_TYPE = 'SEVERE_CHECK';
 /** Identificadores das ações, iguais aos valores aceitos no corpo da resposta. */
 export const SEVERE_CHECK_ACTION_OK = 'OK';
 export const SEVERE_CHECK_ACTION_NOT_OK = 'NOT_OK';
+export const DAILY_FORM_REMINDER_TYPE = 'DAILY_FORM_REMINDER';
+export const DAILY_FORM_REMINDER_IDENTIFIER = 'daily-form-reminder';
+export const DAILY_FORM_REMINDER_HOUR = 10;
+export const DAILY_FORM_REMINDER_MINUTE = 0;
 
 /** Plataforma enviada ao Backend no registro do device. */
 export type PushPlatform = 'ANDROID';
@@ -74,21 +78,23 @@ export async function ensureSevereCheckCategory(): Promise<void> {
  * chamado onde o push existe.
  *
  * Pushes em primeiro plano continuam usando toast para evitar banners
- * duplicados; notificações locais da coleta do smartwatch exibem banner.
- * O som é mantido para alertas clínicos.
+ * duplicados, exceto notificações que precisam de ação imediata.
  */
 export async function initPushHandlers(): Promise<void> {
   const notifications = await loadNotifications();
   if (!notifications) return;
 
   notifications.setNotificationHandler({
-    handleNotification: async notification => ({
-      shouldShowBanner:
-        notification.request.content.data?.type === 'SMARTWATCH_DATA_COLLECTED',
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async notification => {
+      const type = notification.request.content.data?.type;
+      return {
+        shouldShowBanner:
+          type === 'SMARTWATCH_DATA_COLLECTED' || type === DAILY_FORM_REMINDER_TYPE,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      };
+    },
   });
 }
 
@@ -131,6 +137,76 @@ export async function requestPushPermission(): Promise<boolean> {
     return requested.granted;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Agenda o lembrete local do check-in diário às 10h.
+ *
+ * Cancelar pelo identificador antes de reagendar evita notificações duplicadas
+ * após login, inicialização ou atualizações do app.
+ */
+export async function ensureDailyCheckinReminder(): Promise<void> {
+  if (!isPushSupported) return;
+
+  const notifications = await loadNotifications();
+  if (!notifications) return;
+
+  try {
+    await ensureAndroidNotificationChannel();
+    if (!(await requestPushPermission())) return;
+
+    const scheduled = await notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      scheduled
+        .filter(notification =>
+          notification.identifier === DAILY_FORM_REMINDER_IDENTIFIER ||
+          notification.content.data?.type === DAILY_FORM_REMINDER_TYPE,
+        )
+        .map(notification =>
+          notifications.cancelScheduledNotificationAsync(notification.identifier),
+        ),
+    );
+
+    await notifications.scheduleNotificationAsync({
+      identifier: DAILY_FORM_REMINDER_IDENTIFIER,
+      content: {
+        title: 'Hora do check-in diário',
+        body: 'Reserve um momento para registrar como você está hoje.',
+        data: { type: DAILY_FORM_REMINDER_TYPE },
+      },
+      trigger: {
+        type: notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: DAILY_FORM_REMINDER_HOUR,
+        minute: DAILY_FORM_REMINDER_MINUTE,
+        channelId: ANDROID_ALERT_CHANNEL_ID,
+      },
+    });
+  } catch (error) {
+    console.error('Não foi possível agendar o lembrete diário do check-in.', error);
+  }
+}
+
+export async function cancelDailyCheckinReminder(): Promise<void> {
+  if (!isPushSupported) return;
+
+  const notifications = await loadNotifications();
+  if (!notifications) return;
+
+  try {
+    const scheduled = await notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      scheduled
+        .filter(notification =>
+          notification.identifier === DAILY_FORM_REMINDER_IDENTIFIER ||
+          notification.content.data?.type === DAILY_FORM_REMINDER_TYPE,
+        )
+        .map(notification =>
+          notifications.cancelScheduledNotificationAsync(notification.identifier),
+        ),
+    );
+  } catch (error) {
+    console.error('Não foi possível cancelar o lembrete diário do check-in.', error);
   }
 }
 
@@ -212,6 +288,7 @@ export async function syncPushRegistration(): Promise<string | null> {
  */
 export async function removePushRegistration(): Promise<void> {
   try {
+    await cancelDailyCheckinReminder();
     const token = await getRegisteredPushToken();
     if (token) {
       await createApiClient().unregisterPushToken(token);
