@@ -9,28 +9,21 @@ import {
     SdkAvailabilityStatus,
     type BackgroundAccessPermission,
     type Permission,
+    type RecordResult,
+    type RecordType,
 } from 'react-native-health-connect';
+import {
+  summarizeHealthSamples,
+  type HealthSample,
+  type HealthSnapshot,
+} from './health-metrics';
 
-export type HealthMetricStatus = 'coletado' | 'vazio';
+export type { HealthMetricSummary, HealthSnapshot } from './health-metrics';
 
-export type HealthSnapshot = {
-  heartRate: number | null;
-  heartRateStatus: HealthMetricStatus;
-  /**
-   * Horário do próprio registro do Health Connect (amostra escolhida de
-   * frequência cardíaca), em ISO 8601 UTC. `null` quando não há leitura ou
-   * quando o horário vindo do provedor não é uma data válida.
-   */
-  heartRateMeasuredAt: string | null;
-  oxygenSaturation: number | null;
-  oxygenSaturationStatus: HealthMetricStatus;
-  /** Horário do registro de oxigenação usado, em ISO 8601 UTC. */
-  oxygenSaturationMeasuredAt: string | null;
-  bodyTemperature: number | null;
-  bodyTemperatureStatus: HealthMetricStatus;
-  /** Horário do registro de temperatura usado, em ISO 8601 UTC. */
-  bodyTemperatureMeasuredAt: string | null;
-  source: 'Health Connect';
+type HealthTimeRangeFilter = {
+  operator: 'between';
+  startTime: string;
+  endTime: string;
 };
 
 const HEALTH_READ_PERMISSIONS: Permission[] = [
@@ -44,14 +37,23 @@ const BACKGROUND_READ_PERMISSION: BackgroundAccessPermission = {
   recordType: 'BackgroundAccessPermission',
 };
 
-function todayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+async function readAllRecords<T extends RecordType>(
+  recordType: T,
+  timeRangeFilter: HealthTimeRangeFilter,
+): Promise<RecordResult<T>[]> {
+  const records: RecordResult<T>[] = [];
+  let pageToken: string | undefined;
 
-  return {
-    startTime: start.toISOString(),
-    endTime: new Date().toISOString(),
-  };
+  do {
+    const page = await readRecords(recordType, {
+      timeRangeFilter,
+      ...(pageToken ? { pageToken } : {}),
+    });
+    records.push(...page.records);
+    pageToken = page.pageToken;
+  } while (pageToken);
+
+  return records;
 }
 
 function assertAndroidSupport(): void {
@@ -96,16 +98,20 @@ async function requestAndVerifyPermissions(includeBackground: boolean): Promise<
     : HEALTH_READ_PERMISSIONS;
 
   const granted = await requestPermission(requested);
-  const hasPermission = (recordType: string) =>
-    granted.some(permission => permission.recordType === recordType);
+  const hasPermission = (required: Permission | BackgroundAccessPermission) =>
+    granted.some(
+      permission =>
+        permission.accessType === required.accessType &&
+        permission.recordType === required.recordType,
+    );
 
-  if (!HEALTH_READ_PERMISSIONS.every(permission => hasPermission(permission.recordType))) {
+  if (!HEALTH_READ_PERMISSIONS.every(hasPermission)) {
     throw new Error(
       'Permita a leitura de frequência cardíaca, saturação de oxigênio e temperatura corporal no Health Connect.',
     );
   }
 
-  if (includeBackground && !hasPermission('BackgroundAccessPermission')) {
+  if (includeBackground && !hasPermission(BACKGROUND_READ_PERMISSION)) {
     throw new Error(
       'Permita o acesso em segundo plano ao Health Connect para habilitar a coleta automática. ' +
       'Se a opção não aparecer, atualize o Health Connect na Play Store.',
@@ -113,66 +119,43 @@ async function requestAndVerifyPermissions(includeBackground: boolean): Promise<
   }
 }
 
-/**
- * Normaliza o horário vindo do Health Connect para ISO 8601 UTC com "Z".
- * O provedor devolve strings com offset local (ex.: `2026-10-04T08:12:00-03:00`),
- * e a ingestão espera UTC. Retorna `null` quando a data é inválida ou ausente.
- */
-function toUtcIsoString(time: string | null | undefined): string | null {
-  if (!time) return null;
-  const parsed = Date.parse(time);
-  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
-}
-
-/** Amostra de frequência cardíaca mais recente, com o horário do próprio registro. */
-function latestHeartRate(
-  records: { samples: { time: string; beatsPerMinute: number }[] }[],
-): { beatsPerMinute: number; measuredAt: string | null } | null {
-  let latest: { time: number; bpm: number; rawTime: string } | null = null;
-
-  for (const record of records) {
-    for (const sample of record.samples) {
-      const time = Date.parse(sample.time);
-      if (Number.isNaN(time)) continue;
-      if (latest === null || time > latest.time) {
-        latest = { time, bpm: sample.beatsPerMinute, rawTime: sample.time };
-      }
-    }
-  }
-
-  if (latest === null) return null;
-  return { beatsPerMinute: latest.bpm, measuredAt: toUtcIsoString(latest.rawTime) };
-}
-
 // Assume que o Health Connect já foi inicializado por quem chamou.
 async function readHealthConnect(): Promise<HealthSnapshot> {
-  const range = todayRange();
+  const windowEnd = new Date();
+  const windowStart = new Date(windowEnd.getTime() - 60 * 60 * 1000);
+  const range = {
+    startTime: windowStart.toISOString(),
+    endTime: windowEnd.toISOString(),
+  };
   const timeRangeFilter = { operator: 'between', ...range } as const;
 
-  const [heartRateResult, oxygenResult, temperatureResult] = await Promise.all([
-    readRecords('HeartRate', { timeRangeFilter, ascendingOrder: false }),
-    readRecords('OxygenSaturation', { timeRangeFilter, ascendingOrder: false }),
-    readRecords('BodyTemperature', { timeRangeFilter, ascendingOrder: false }),
+  const [heartRateRecords, oxygenRecords, temperatureRecords] = await Promise.all([
+    readAllRecords('HeartRate', timeRangeFilter),
+    readAllRecords('OxygenSaturation', timeRangeFilter),
+    readAllRecords('BodyTemperature', timeRangeFilter),
   ]);
 
-  // `ascendingOrder: false` já devolve o registro mais recente primeiro.
-  const heartRate = latestHeartRate(heartRateResult.records);
-  const oxygenRecord = oxygenResult.records[0] ?? null;
-  const temperatureRecord = temperatureResult.records[0] ?? null;
-  const heartRateValue = heartRate?.beatsPerMinute ?? null;
-  const oxygenSaturationValue = oxygenRecord?.percentage ?? null;
-  const bodyTemperatureValue = temperatureRecord?.temperature.inCelsius ?? null;
+  const heartRateSamples: HealthSample[] = heartRateRecords.flatMap(record =>
+    record.samples.map(sample => ({
+      value: sample.beatsPerMinute,
+      time: sample.time,
+    })),
+  );
+  const oxygenSamples: HealthSample[] = oxygenRecords.map(record => ({
+    value: record.percentage,
+    time: record.time,
+  }));
+  const temperatureSamples: HealthSample[] = temperatureRecords.map(record => ({
+    value: record.temperature.inCelsius,
+    time: record.time,
+  }));
 
   return {
-    heartRate: heartRateValue,
-    heartRateStatus: heartRateValue === null ? 'vazio' : 'coletado',
-    heartRateMeasuredAt: heartRate?.measuredAt ?? null,
-    oxygenSaturation: oxygenSaturationValue,
-    oxygenSaturationStatus: oxygenSaturationValue === null ? 'vazio' : 'coletado',
-    oxygenSaturationMeasuredAt: toUtcIsoString(oxygenRecord?.time),
-    bodyTemperature: bodyTemperatureValue,
-    bodyTemperatureStatus: bodyTemperatureValue === null ? 'vazio' : 'coletado',
-    bodyTemperatureMeasuredAt: toUtcIsoString(temperatureRecord?.time),
+    heartRate: summarizeHealthSamples(heartRateSamples, range.startTime, range.endTime),
+    oxygenSaturation: summarizeHealthSamples(oxygenSamples, range.startTime, range.endTime),
+    bodyTemperature: summarizeHealthSamples(temperatureSamples, range.startTime, range.endTime),
+    windowStart: range.startTime,
+    windowEnd: range.endTime,
     source: 'Health Connect',
   };
 }
@@ -197,11 +180,26 @@ export async function readHealthInBackground(): Promise<HealthSnapshot> {
 
   const grantedPermissions = await getGrantedPermissions();
   const hasBackgroundAccess = grantedPermissions.some(
-    permission => permission.recordType === 'BackgroundAccessPermission',
+    permission =>
+      permission.accessType === BACKGROUND_READ_PERMISSION.accessType &&
+      permission.recordType === BACKGROUND_READ_PERMISSION.recordType,
   );
 
   if (!hasBackgroundAccess) {
     throw new Error('O acesso em segundo plano ao Health Connect foi removido.');
+  }
+
+  const hasAllHealthReadPermissions = HEALTH_READ_PERMISSIONS.every(required =>
+    grantedPermissions.some(
+      permission =>
+        permission.accessType === required.accessType &&
+        permission.recordType === required.recordType,
+    ),
+  );
+  if (!hasAllHealthReadPermissions) {
+    throw new Error(
+      'Uma ou mais permissões de leitura de saúde foram removidas. Reative o acesso às métricas no Health Connect.',
+    );
   }
 
   return readHealthConnect();

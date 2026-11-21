@@ -1,48 +1,9 @@
 import { getPatientId } from '@/src/infrastructure/api/secure-token-store';
-import type { HealthSnapshot } from './health-service';
-
-type IngestionReading = {
-  type: 'heartRate' | 'spo2' | 'temperature';
-  value: number;
-  unit: 'bpm' | '%' | 'celsius';
-  /**
-   * Horário do próprio registro no Health Connect, em ISO 8601 UTC com "Z".
-   * Ausente quando o Health Connect não informou um horário válido.
-   */
-  measuredAt?: string;
-};
+import type { HealthSnapshot } from './health-metrics';
+import { buildSmartwatchReadings } from './smartwatch-readings';
 
 export async function submitSmartwatchSnapshot(snapshot: HealthSnapshot): Promise<void> {
-  const readings: IngestionReading[] = [];
-
-  if (snapshot.heartRate !== null) {
-    readings.push({
-      type: 'heartRate',
-      value: snapshot.heartRate,
-      unit: 'bpm',
-      ...(snapshot.heartRateMeasuredAt ? { measuredAt: snapshot.heartRateMeasuredAt } : {}),
-    });
-  }
-  if (snapshot.oxygenSaturation !== null) {
-    readings.push({
-      type: 'spo2',
-      value: snapshot.oxygenSaturation,
-      unit: '%',
-      ...(snapshot.oxygenSaturationMeasuredAt
-        ? { measuredAt: snapshot.oxygenSaturationMeasuredAt }
-        : {}),
-    });
-  }
-  if (snapshot.bodyTemperature !== null) {
-    readings.push({
-      type: 'temperature',
-      value: snapshot.bodyTemperature,
-      unit: 'celsius',
-      ...(snapshot.bodyTemperatureMeasuredAt
-        ? { measuredAt: snapshot.bodyTemperatureMeasuredAt }
-        : {}),
-    });
-  }
+  const readings = buildSmartwatchReadings(snapshot);
   if (readings.length === 0) return;
 
   const patientId = await getPatientId();

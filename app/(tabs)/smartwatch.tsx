@@ -1,10 +1,12 @@
 import { Button, Card, Screen } from '@/components/ui';
+import type { HealthMetricSummary } from '@/src/infrastructure/health/health-metrics';
 import type { HealthSnapshot } from '@/src/infrastructure/health/health-service';
 import {
   disableSmartwatchMonitoring,
   enableSmartwatchMonitoring,
   getSmartwatchMonitoringState,
   openBatteryOptimizationSettings,
+  requestBatteryOptimizationExemption,
   type SmartwatchCollection,
 } from '@/src/infrastructure/health/smartwatch-background-service';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,7 +31,7 @@ export default function Smartwatch() {
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null);
   const [lastCollectedAt, setLastCollectedAt] = useState<string | null>(null);
   const [collections, setCollections] = useState<SmartwatchCollection[]>([]);
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -99,7 +101,20 @@ export default function Smartwatch() {
       setConfirmVisible(true);
       return;
     }
-    void runUpdate(enableSmartwatchMonitoring, 'Não foi possível ativar a coleta do smartwatch.');
+    void runUpdate(async () => {
+      await enableSmartwatchMonitoring();
+      try {
+        await requestBatteryOptimizationExemption();
+      } catch (settingsError) {
+        console.error(
+          'A coleta foi ativada, mas não foi possível abrir as configurações de bateria.',
+          settingsError,
+        );
+        setError(
+          'A coleta foi ativada, mas não foi possível abrir as configurações de bateria. Use o botão "Configurar bateria".',
+        );
+      }
+    }, 'Não foi possível ativar a coleta do smartwatch.');
   };
 
   const handleConfirmStop = () => {
@@ -122,21 +137,13 @@ export default function Smartwatch() {
   const isAndroid = Platform.OS === 'android';
   const collectedAtLabel = formatCollectedAt(lastCollectedAt);
 
-  const statusTitle = updating
-    ? enabled
-      ? 'Desativando...'
-      : 'Ativando...'
-    : enabled
-      ? 'Coleta em execução'
-      : 'Coleta desligada';
-
   return (
     <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
       <ScrollView contentContainerClassName="flex-grow gap-5 p-8">
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Meu smartwatch</Text>
           <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhamento 24 horas com dados do seu smartwatch</Text>
-          <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400"/> 
+          <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400"/>
         </View>
 
         <Pressable
@@ -161,7 +168,6 @@ export default function Smartwatch() {
                   </Text>
                 </>
               )}
-
             </>
           )}
         </Pressable>
@@ -188,9 +194,9 @@ export default function Smartwatch() {
             >
               {snapshot ? (
                 <View className="gap-3">
-                  <HealthValue label="Frequência cardíaca" value={formatMetric(snapshot.heartRate, 'bpm')} status={snapshot.heartRateStatus} />
-                  <HealthValue label="Oxigenação no sangue" value={formatMetric(snapshot.oxygenSaturation, '%')} status={snapshot.oxygenSaturationStatus} />
-                  <HealthValue label="Temperatura corporal" value={formatMetric(snapshot.bodyTemperature, '°C')} status={snapshot.bodyTemperatureStatus} />
+                  <HealthValue label="Frequência cardíaca" metric={snapshot.heartRate} unit="bpm" />
+                  <HealthValue label="Oxigenação no sangue" metric={snapshot.oxygenSaturation} unit="%" />
+                  <HealthValue label="Temperatura corporal" metric={snapshot.bodyTemperature} unit="°C" />
                 </View>
               ) : (
                 <Text className="font-body text-neutral-700 dark:text-theme-dark-text-secondary">
@@ -324,18 +330,18 @@ export default function Smartwatch() {
                 <View className="gap-3">
                   <HealthValue
                     label="Oxigenação do sangue (SpO₂)"
-                    value={formatMetric(selectedCollection.snapshot.oxygenSaturation, '%')}
-                    status={selectedCollection.snapshot.oxygenSaturationStatus}
+                    metric={selectedCollection.snapshot.oxygenSaturation}
+                    unit="%"
                   />
                   <HealthValue
                     label="Temperatura corporal"
-                    value={formatMetric(selectedCollection.snapshot.bodyTemperature, '°C')}
-                    status={selectedCollection.snapshot.bodyTemperatureStatus}
+                    metric={selectedCollection.snapshot.bodyTemperature}
+                    unit="°C"
                   />
                   <HealthValue
                     label="Frequência cardíaca"
-                    value={formatMetric(selectedCollection.snapshot.heartRate, 'bpm')}
-                    status={selectedCollection.snapshot.heartRateStatus}
+                    metric={selectedCollection.snapshot.heartRate}
+                    unit="bpm"
                   />
                   <Button fullWidth variant="secondary" onPress={() => setSelectedCollection(null)}>
                     Fechar
@@ -349,7 +355,6 @@ export default function Smartwatch() {
     </Screen>
   );
 }
-
 
 function formatCollectedAt(iso: string | null): string | null {
   if (!iso) return null;
@@ -365,29 +370,30 @@ function formatCollectedAt(iso: string | null): string | null {
   });
 }
 
-function formatMetric(value: number | null, unit: string): string {
-  return value === null ? 'Vazio' : `${value} ${unit}`;
+function formatMetric(metric: HealthMetricSummary, unit: string): string {
+  if (metric.percentile5 === null || metric.percentile95 === null) return 'Vazio';
+  return `P5 ${metric.percentile5} · P95 ${metric.percentile95} ${unit}`;
 }
 
 function HealthValue({
   label,
-  value,
-  status,
+  metric,
+  unit,
 }: {
   label: string;
-  value: string;
-  status?: 'coletado' | 'vazio';
+  metric: HealthMetricSummary;
+  unit: string;
 }) {
   return (
     <View className="flex-row items-center justify-between border-b border-neutral-150 pb-3 dark:border-theme-dark-border">
       <Text className="font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">{label}</Text>
       <View className="items-end">
-        <Text className="font-data text-[15px] font-bold text-neutral-900 dark:text-theme-dark-text-primary">{value}</Text>
-        {status ? (
-          <Text className="font-body text-[12px] text-neutral-500 dark:text-theme-dark-text-tertiary">
-            Status: {status}
-          </Text>
-        ) : null}
+        <Text className="font-data text-[15px] font-bold text-neutral-900 dark:text-theme-dark-text-primary">
+          {formatMetric(metric, unit)}
+        </Text>
+        <Text className="font-body text-[12px] text-neutral-500 dark:text-theme-dark-text-tertiary">
+          Status: {metric.sampleCount > 0 ? 'coletado' : 'vazio'}
+        </Text>
       </View>
     </View>
   );

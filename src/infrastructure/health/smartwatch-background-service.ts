@@ -8,6 +8,7 @@ import {
     readHealthInBackground,
     type HealthSnapshot,
 } from './health-service';
+import type { HealthMetricSummary } from './health-metrics';
 import { submitSmartwatchSnapshot } from './smartwatch-ingestion-service';
 
 export const SMARTWATCH_TASK_NAME = 'recupera-saude-smartwatch-hourly';
@@ -40,6 +41,18 @@ export type SmartwatchCollection = {
   collectedAt: string;
   snapshot: HealthSnapshot;
 };
+
+type LegacyHealthSnapshot = {
+  heartRate: number | null;
+  heartRateMeasuredAt?: string | null;
+  oxygenSaturation: number | null;
+  oxygenSaturationMeasuredAt?: string | null;
+  bodyTemperature?: number | null;
+  bodyTemperatureMeasuredAt?: string | null;
+  source: 'Health Connect';
+};
+
+type StoredHealthSnapshot = HealthSnapshot | LegacyHealthSnapshot;
 
 let serviceGeneration = 0;
 let cancelScheduledWait: (() => void) | null = null;
@@ -133,10 +146,21 @@ async function ensureBackgroundReadPermission(): Promise<void> {
 }
 
 /**
- * 3) Otimização de bateria: o Expo não expõe esse status, então não dá para detectar.
- *    Esta função abre a tela do sistema para o usuário liberar o app (chame a partir da UI,
- *    principalmente em Samsung/One UI). Requer: npx expo install expo-intent-launcher
+ * 3) Solicita ao Android a exceção de otimização de bateria para permitir coletas periódicas.
+ *    O status da exceção não é exposto pelo Expo; o Android pode não mostrar o diálogo
+ *    novamente se o usuário já tiver respondido.
  */
+export async function requestBatteryOptimizationExemption(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
+  await IntentLauncher.startActivityAsync(
+    IntentLauncher.ActivityAction.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+    { data: 'package:com.tcc26.recuperasaude' },
+  );
+}
+
 export async function openBatteryOptimizationSettings(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
@@ -146,56 +170,109 @@ export async function openBatteryOptimizationSettings(): Promise<void> {
     await IntentLauncher.startActivityAsync(
       IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS,
     );
-  } catch {
+  } catch (settingsError) {
+    console.error('Não foi possível abrir as configurações de otimização de bateria.', settingsError);
     await Linking.openSettings();
   }
 }
 
-function isHealthSnapshot(value: unknown): value is HealthSnapshot {
+function isHealthSnapshot(value: unknown): value is StoredHealthSnapshot {
   if (typeof value !== 'object' || value === null) return false;
 
   const candidate = value as Record<string, unknown>;
   const isNullableNumber = (field: unknown) =>
     field === null || (typeof field === 'number' && Number.isFinite(field));
-  const isOptionalNullableNumber = (field: unknown) =>
-    field === undefined || isNullableNumber(field);
   const isOptionalIsoString = (field: unknown) =>
     field === null || field === undefined || typeof field === 'string';
+  const isMetricSummary = (field: unknown): field is HealthMetricSummary => {
+    if (typeof field !== 'object' || field === null) return false;
+    const metric = field as Record<string, unknown>;
+    return (
+      isNullableNumber(metric.percentile5) &&
+      isNullableNumber(metric.percentile95) &&
+      isOptionalIsoString(metric.percentile5MeasuredAt) &&
+      isOptionalIsoString(metric.percentile95MeasuredAt) &&
+      typeof metric.sampleCount === 'number' &&
+      Number.isInteger(metric.sampleCount) &&
+      metric.sampleCount >= 0
+    );
+  };
+  const hasSummaryMetrics =
+    isMetricSummary(candidate.heartRate) &&
+    isMetricSummary(candidate.oxygenSaturation) &&
+    isMetricSummary(candidate.bodyTemperature);
+  const hasLegacyMetrics =
+    isNullableNumber(candidate.heartRate) &&
+    isOptionalIsoString(candidate.heartRateMeasuredAt) &&
+    isNullableNumber(candidate.oxygenSaturation) &&
+    isOptionalIsoString(candidate.oxygenSaturationMeasuredAt) &&
+    (candidate.bodyTemperature === undefined || isNullableNumber(candidate.bodyTemperature)) &&
+    isOptionalIsoString(candidate.bodyTemperatureMeasuredAt);
 
   return (
-    isNullableNumber(candidate.heartRate) &&
-    isNullableNumber(candidate.oxygenSaturation) &&
-    isOptionalNullableNumber(candidate.bodyTemperature) &&
-    (candidate.heartRateStatus === undefined ||
-      candidate.heartRateStatus === 'coletado' ||
-      candidate.heartRateStatus === 'vazio') &&
-    (candidate.oxygenSaturationStatus === undefined ||
-      candidate.oxygenSaturationStatus === 'coletado' ||
-      candidate.oxygenSaturationStatus === 'vazio') &&
-    (candidate.bodyTemperatureStatus === undefined ||
-      candidate.bodyTemperatureStatus === 'coletado' ||
-      candidate.bodyTemperatureStatus === 'vazio') &&
-    isOptionalIsoString(candidate.heartRateMeasuredAt) &&
-    isOptionalIsoString(candidate.oxygenSaturationMeasuredAt) &&
-    isOptionalIsoString(candidate.bodyTemperatureMeasuredAt) &&
-    candidate.source === 'Health Connect'
+    candidate.source === 'Health Connect' &&
+    (hasSummaryMetrics || hasLegacyMetrics) &&
+    isOptionalIsoString(candidate.windowStart) &&
+    isOptionalIsoString(candidate.windowEnd)
   );
 }
 
-/** Descarta propriedades antigas e normaliza snapshots salvos por versões anteriores. */
-function normalizeSnapshot(snapshot: HealthSnapshot): HealthSnapshot {
+function normalizeMetric(
+  metric: HealthMetricSummary | number | null | undefined,
+  measuredAt?: string | null,
+): HealthMetricSummary {
+  if (typeof metric === 'object' && metric !== null) {
+    return {
+      percentile5: metric.percentile5,
+      percentile95: metric.percentile95,
+      percentile5MeasuredAt: metric.percentile5MeasuredAt ?? null,
+      percentile95MeasuredAt: metric.percentile95MeasuredAt ?? null,
+      sampleCount: metric.sampleCount,
+    };
+  }
+
+  const value = metric ?? null;
+  const time = value === null ? null : measuredAt ?? null;
   return {
-    heartRate: snapshot.heartRate,
-    heartRateStatus: snapshot.heartRate === null ? 'vazio' : 'coletado',
-    heartRateMeasuredAt: snapshot.heartRateMeasuredAt ?? null,
-    oxygenSaturation: snapshot.oxygenSaturation,
-    oxygenSaturationStatus: snapshot.oxygenSaturation === null ? 'vazio' : 'coletado',
-    oxygenSaturationMeasuredAt: snapshot.oxygenSaturationMeasuredAt ?? null,
-    bodyTemperature: snapshot.bodyTemperature ?? null,
-    bodyTemperatureStatus: snapshot.bodyTemperature == null ? 'vazio' : 'coletado',
-    bodyTemperatureMeasuredAt: snapshot.bodyTemperatureMeasuredAt ?? null,
+    percentile5: value,
+    percentile95: value,
+    percentile5MeasuredAt: time,
+    percentile95MeasuredAt: time,
+    sampleCount: value === null ? 0 : 1,
+  };
+}
+
+/** Descarta propriedades antigas e normaliza snapshots salvos por versões anteriores. */
+function normalizeSnapshot(snapshot: StoredHealthSnapshot): HealthSnapshot {
+  const legacy = snapshot as LegacyHealthSnapshot;
+  const current = snapshot as HealthSnapshot;
+  return {
+    heartRate: normalizeMetric(current.heartRate ?? legacy.heartRate, legacy.heartRateMeasuredAt),
+    oxygenSaturation: normalizeMetric(
+      current.oxygenSaturation ?? legacy.oxygenSaturation,
+      legacy.oxygenSaturationMeasuredAt,
+    ),
+    bodyTemperature: normalizeMetric(
+      current.bodyTemperature ?? legacy.bodyTemperature,
+      legacy.bodyTemperatureMeasuredAt,
+    ),
+    windowStart: current.windowStart ?? null,
+    windowEnd: current.windowEnd ?? null,
     source: 'Health Connect',
   };
+}
+
+function isStoredCollection(
+  entry: unknown,
+): entry is { collectedAt: string; snapshot: StoredHealthSnapshot } {
+  return (
+    typeof entry === 'object' &&
+    entry !== null &&
+    'collectedAt' in entry &&
+    typeof entry.collectedAt === 'string' &&
+    'snapshot' in entry &&
+    isHealthSnapshot(entry.snapshot)
+  );
 }
 
 async function saveSnapshot(snapshot: HealthSnapshot): Promise<void> {
@@ -207,15 +284,7 @@ async function saveSnapshot(snapshot: HealthSnapshot): Promise<void> {
       const parsed: unknown = JSON.parse(savedHistory);
       if (!Array.isArray(parsed)) throw new Error('Formato do histórico inválido.');
       collections = parsed
-        .filter(
-          (entry): entry is SmartwatchCollection =>
-            typeof entry === 'object' &&
-            entry !== null &&
-            'collectedAt' in entry &&
-            typeof entry.collectedAt === 'string' &&
-            'snapshot' in entry &&
-            isHealthSnapshot(entry.snapshot),
-        )
+        .filter(isStoredCollection)
         .map(entry => ({
           collectedAt: entry.collectedAt,
           snapshot: normalizeSnapshot(entry.snapshot),
@@ -372,15 +441,7 @@ export async function getSmartwatchMonitoringState(): Promise<MonitoringState> {
       const parsed: unknown = JSON.parse(savedHistory);
       if (!Array.isArray(parsed)) throw new Error('Formato do histórico inválido.');
       collections = parsed
-        .filter(
-          (entry): entry is SmartwatchCollection =>
-            typeof entry === 'object' &&
-            entry !== null &&
-            'collectedAt' in entry &&
-            typeof entry.collectedAt === 'string' &&
-            'snapshot' in entry &&
-            isHealthSnapshot(entry.snapshot),
-        )
+        .filter(isStoredCollection)
         .map(entry => ({
           collectedAt: entry.collectedAt,
           snapshot: normalizeSnapshot(entry.snapshot),
