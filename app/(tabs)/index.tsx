@@ -24,8 +24,6 @@ import type { PatientProcedureSummaryResponse } from '@/src/domain/patient-proce
 
 /** A tela de check-in existe em app/checkin.tsx. */
 const CHECKIN_ROUTE = '/checkin';
-/** Só mostramos o esqueleto se a resposta demorar mais que isto. */
-const SKELETON_DELAY_MS = 300;
 
 type LoadPhase = 'loading' | 'ready' | 'error';
 
@@ -39,6 +37,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState('');
   const mounted = useRef(true);
   const loadRequestId = useRef(0);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -49,11 +48,12 @@ export default function Home() {
 
   const load = useCallback(async () => {
     const requestId = ++loadRequestId.current;
-    setPhase('loading');
-    setShowSkeleton(false);
-    const skeletonTimer = setTimeout(() => {
-      if (mounted.current) setShowSkeleton(true);
-    }, SKELETON_DELAY_MS);
+    const initialLoad = !hasLoadedRef.current;
+
+    if (initialLoad) {
+      setPhase('loading');
+      setShowSkeleton(true);
+    }
 
     // Nome e alertas são acessórios: falha neles não derruba a tela.
     void fetchPatientFirstName().then((name) => {
@@ -82,6 +82,7 @@ export default function Home() {
       } else {
         setHomeMetrics(null);
       }
+      hasLoadedRef.current = true;
       setPhase('ready');
     } catch (error) {
       // Log permanente: `describeHomeError` reduz tudo a uma mensagem amigável,
@@ -90,9 +91,9 @@ export default function Home() {
 
       if (!mounted.current || requestId !== loadRequestId.current) return;
       setErrorMessage(describeHomeError(error));
+      hasLoadedRef.current = true;
       setPhase('error');
     } finally {
-      clearTimeout(skeletonTimer);
       if (mounted.current && requestId === loadRequestId.current) setShowSkeleton(false);
     }
   }, []);
