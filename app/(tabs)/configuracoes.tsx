@@ -279,7 +279,7 @@ export default function Settings() {
     return (
       <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
         <SubScreenHeader title="Termo de privacidade" onBack={() => setSection('main')} />
-        <ScrollView className="flex-1 px-5 mb-16" contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 32 }}>
           <Card padding="lg">
             <View className="gap-5">
               <View className="gap-2">
@@ -402,7 +402,7 @@ export default function Settings() {
 
   // Tela principal
   return (
-    <Screen className="bg-neutral-100 dark:bg-theme-dark-background p-8 gap-5">
+    <Screen className="bg-neutral-100 dark:bg-theme-dark-background p-8 gap-3">
       {/* Título */}
       <View className='flex flex-row justify-between'>
         <View className='flex flex-col'>
@@ -415,20 +415,21 @@ export default function Settings() {
         </View>
 
         <View>
-
           <Pressable
             className='rounded-full p-4 bg-red-400/20 flex items-center justify-center'
             onPress={() => void logout()}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator  />
+              <ActivityIndicator />
             ) : (
-              <Ionicons color='red' name='log-out-outline' size={26} /> 
+              <Ionicons color='red' name='log-out-outline' size={26} />
             )}
           </Pressable>
         </View>
       </View>
+
+      <View className="mb-2 h-[3px] w-full rounded-full bg-neutral-400/20" />
 
       {/* Seção de conta */}
       <Card title="Conta" padding='lg'>

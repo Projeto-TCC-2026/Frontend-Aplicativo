@@ -63,9 +63,9 @@ export default function Notifications() {
   }
 
   return (
-    <Screen className="bg-neutral-100 p-8 dark:bg-theme-dark-background pb-24">
+    <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
       <ScrollView
-        contentContainerClassName="flex-grow gap-5 pb-10"
+        contentContainerClassName="flex-grow gap-5 pt-8 pb-[80px] px-8"
         refreshControl={
           <RefreshControl
             colors={[colors.primary]}
@@ -74,10 +74,12 @@ export default function Notifications() {
             tintColor={colors.primary}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Alertas</Text>
           <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Ocorrências identificadas nos últimos 7 dias.</Text>
+          <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400/20" />
         </View>
 
         {error ? <ErrorState description={error} onRetry={() => void loadAlerts()} /> : null}

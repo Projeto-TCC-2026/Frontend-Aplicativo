@@ -143,14 +143,14 @@ export default function Smartwatch() {
       <ScrollView contentContainerClassName="flex-grow gap-5 p-8">
         <View>
           <Text className="font-display text-[30px] font-extrabold text-neutral-900 dark:text-theme-dark-text-primary">Meu smartwatch</Text>
-          <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhamento 24 horas com dados do seu smartwatch</Text>
+          <Text className="mt-1 font-body text-[15px] text-neutral-700 dark:text-theme-dark-text-secondary">Acompanhamento 24 horas</Text>
           <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400/20" />
         </View>
 
         <Pressable
           onPress={handleButtonPress}
           disabled={!isAndroid || updating}
-          className={`w-full flex-row items-center justify-between rounded-[14px] border p-6 ${enabled ? 'border-green-500 bg-green-500' : 'border-neutral-150 bg-white dark:border-theme-dark-border dark:bg-theme-dark-surface'} ${!isAndroid || updating ? 'opacity-50' : 'active:opacity-80'}`}
+          className={`w-full flex-row items-center my-2 justify-between rounded-[14px] border p-6 ${enabled ? 'border-green-500 bg-green-500' : 'border-neutral-150 bg-white dark:border-theme-dark-border dark:bg-theme-dark-surface'} ${!isAndroid || updating ? 'opacity-50' : 'active:opacity-80'}`}
         >
           {loading ? (
             <View className="items-center py-4">
@@ -207,6 +207,7 @@ export default function Smartwatch() {
             </Card>
           </View>
         )}
+
         {isAndroid && (enabled || collections.length > 0) && (
           <View>
             <Card
