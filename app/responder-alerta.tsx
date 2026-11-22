@@ -44,26 +44,32 @@ export default function RespondToAlert() {
 
   return (
     <Screen className="bg-neutral-100 dark:bg-theme-dark-background">
-      <ScrollView contentContainerClassName="flex-grow gap-6 p-6 pb-8" showsVerticalScrollIndicator={false}>
-        <Pressable
-          accessibilityLabel="Voltar"
-          accessibilityRole="button"
-          className="h-11 w-11 items-center justify-center self-start rounded-[12px] bg-white active:bg-neutral-150 dark:bg-theme-dark-surface dark:active:bg-theme-dark-border"
-          hitSlop={8}
-          onPress={goBack}
-        >
-          <Ionicons color={backIconColor} name="arrow-back" size={24} />
-        </Pressable>
+      <ScrollView contentContainerClassName="flex-grow gap-2 p-10 pb-8" showsVerticalScrollIndicator={false}>
+        <View className="gap-6 flex flex-row items-center justify-between">
+          <Pressable
+            accessibilityLabel="Voltar"
+            accessibilityRole="button"
+            className="h-11 -ml-2 w-11 items-center justify-center self-start rounded-full dark:active:bg-theme-dark-border"
+            hitSlop={8}
+            onPress={goBack}
+          >
+            <Ionicons color={backIconColor} name="arrow-back" size={24} />
+          </Pressable>
 
-        <Text
-          allowFontScaling
-          className="font-display text-[28px] font-extrabold leading-9 text-neutral-900 dark:text-theme-dark-text-primary"
-        >
-          Você está bem?
-        </Text>
+          <Text
+            allowFontScaling
+            className="font-display text-[28px] font-extrabold leading-9 text-neutral-900 dark:text-theme-dark-text-primary"
+          >
+            Você está bem?
+          </Text>
+
+          <Ionicons color="transparent" name="arrow-back" size={24} />
+        </View>
+
+        <View className="mt-3 h-[3px] w-full rounded-full bg-neutral-400/20" />
 
         {alertId ? (
-          <>
+          <View className="gap-4 mt-12">
             <View className={CARD_CLASS}>
               <Text allowFontScaling className={BODY_CLASS}>
                 Identificamos uma alteração na sua medição mais recente. Nos diga como você está
@@ -82,8 +88,10 @@ export default function RespondToAlert() {
                 size="lg"
                 variant="success"
               >
+                <Ionicons color="white" name="checkmark-circle" size={15} className="mr-2" />
                 Estou bem
               </Button>
+
               <Button
                 accessibilityLabel="Não estou bem"
                 disabled={sending === 'OK'}
@@ -97,7 +105,7 @@ export default function RespondToAlert() {
                 Não estou bem
               </Button>
             </View>
-          </>
+          </View>
         ) : (
           <View className={CARD_CLASS}>
             <Text allowFontScaling className={BODY_CLASS}>

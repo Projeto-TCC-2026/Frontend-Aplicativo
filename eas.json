@@ -9,10 +9,26 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://d3homtrmb1cn17.cloudfront.net",
+        "EXPO_PUBLIC_MONITORAMENTO_INGESTION_URL": "https://w5gumnjewp3qgu33dfgwqfvc7m0ffowp.lambda-url.us-east-1.on.aws/",
+        "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://d3homtrmb1cn17.cloudfront.net",
+        "EXPO_PUBLIC_MONITORAMENTO_INGESTION_URL": "https://w5gumnjewp3qgu33dfgwqfvc7m0ffowp.lambda-url.us-east-1.on.aws/",
+        "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {

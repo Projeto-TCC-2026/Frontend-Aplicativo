@@ -7,6 +7,52 @@ export type PatientAlert = {
   createdAt: string;
 };
 
+/** Prazo, em minutos, para responder a um alerta grave a partir do recebimento. */
+export const ALERT_RESPONSE_WINDOW_MINUTES = 10;
+
+export function parseBackendAlertTime(createdAt: string): number {
+  const trimmed = createdAt.trim();
+  if (!trimmed) return Number.NaN;
+
+  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  const timestamp = hasExplicitTimezone ? trimmed : `${trimmed}Z`;
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+export function formatBackendAlertDate(createdAt: string): string {
+  const parsed = parseBackendAlertTime(createdAt);
+  if (!Number.isFinite(parsed)) return 'Data indisponível';
+
+  return new Date(parsed).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  });
+}
+
+export function getAlertResponseRemainingSeconds(
+  createdAt: string,
+  now = Date.now(),
+): number {
+  const createdTime = parseBackendAlertTime(createdAt);
+  if (!Number.isFinite(createdTime)) return 0;
+
+  const deadline = createdTime + ALERT_RESPONSE_WINDOW_MINUTES * 60 * 1000;
+  return Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
+export function isAlertResponseAvailable(
+  status: string,
+  createdAt: string,
+  now = Date.now(),
+): boolean {
+  return needsPatientResponse(status) && getAlertResponseRemainingSeconds(createdAt, now) > 0;
+}
+
 export type PaginatedAlerts = {
   content: PatientAlert[];
   totalPages: number;
@@ -54,6 +100,11 @@ export function describeAlertStatus(status: string): string {
 /** Alertas nesse status esperam a resposta da paciente ("Você está bem?"). */
 export function isAwaitingPatientResponse(status: string): boolean {
   return normalizeStatus(status) === 'AWAITING_PATIENT';
+}
+
+export function needsPatientResponse(status: string): boolean {
+  const normalized = normalizeStatus(status);
+  return normalized === 'AWAITING_PATIENT' || normalized === 'UNCONFIRMED';
 }
 
 /** Resposta da paciente a um alerta grave. */
