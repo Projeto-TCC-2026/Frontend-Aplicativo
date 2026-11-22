@@ -42,12 +42,12 @@ test('calculates remaining response seconds and never returns a negative value',
   );
 });
 
-test('parses a naive backend timestamp as Brasilia time', () => {
-  const backendCreatedAt = '2026-11-21T23:55:00';
-  const patientNow = Date.parse('2026-11-22T00:05:00Z');
+test('keeps the backend timestamp timezone without applying an extra adjustment', () => {
+  const backendCreatedAt = '2026-11-21T23:55:00-03:00';
+  const patientNow = Date.parse('2026-11-22T03:05:00Z');
 
   assert.equal(getAlertResponseRemainingSeconds(backendCreatedAt, patientNow), 0);
-  assert.match(formatBackendAlertDate(backendCreatedAt), /20:55/);
+  assert.match(formatBackendAlertDate(backendCreatedAt), /23:55/);
 });
 
 test('keeps timestamps with an explicit timezone unchanged', () => {

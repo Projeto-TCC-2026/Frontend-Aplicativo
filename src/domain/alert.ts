@@ -14,9 +14,7 @@ export function parseBackendAlertTime(createdAt: string): number {
   const trimmed = createdAt.trim();
   if (!trimmed) return Number.NaN;
 
-  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
-  const timestamp = hasExplicitTimezone ? trimmed : `${trimmed}Z`;
-  const parsed = Date.parse(timestamp);
+  const parsed = Date.parse(trimmed);
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
